@@ -161,7 +161,7 @@ export default function DashboardPage() {
               Enterprise Ticket & Recommendation Hub
             </h1>
             <p className="text-slate-300 text-sm leading-relaxed">
-              To raise support requests, view ticket statuses, access subcontractor work logs, or manage platform settings, please sign in or register an account.
+              To raise support requests, view ticket statuses, access Teams work logs, or manage platform settings, please sign in or register an account.
             </p>
           </div>
 
@@ -181,12 +181,12 @@ export default function DashboardPage() {
           <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#c16d18] flex items-center justify-center shrink-0">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <div>
+          {/* <div>
             <h3 className="text-sm font-bold text-slate-900">Protected Platform Portal</h3>
             <p className="text-xs text-slate-500">
               Unauthenticated users are restricted from viewing ticket titles, diagnostics, or IT work logs to protect target client platforms.
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     );
