@@ -109,7 +109,7 @@ export default function Navbar() {
             </div>
             <div>
               <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight flex items-center gap-1">
-                TicketPulse <span className="text-[#c16d18]">Pro</span>
+                TicketPulse
               </span>
               <span className="text-[9px] text-slate-400 font-semibold block -mt-0.5 tracking-wider uppercase">
                 Support Hub
@@ -127,8 +127,8 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${isActive
-                      ? 'bg-white text-[#c16d18] shadow-2xs border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    ? 'bg-white text-[#c16d18] shadow-2xs border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#c16d18]' : 'text-slate-400'}`} />
@@ -296,8 +296,8 @@ export default function Navbar() {
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive
-                        ? 'bg-[#c16d18]/10 text-[#c16d18]'
-                        : 'text-slate-600 hover:bg-slate-50'
+                      ? 'bg-[#c16d18]/10 text-[#c16d18]'
+                      : 'text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     <Icon className="w-4 h-4" />
