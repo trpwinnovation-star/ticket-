@@ -177,17 +177,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Access Protection Notice */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+        {/* <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#c16d18] flex items-center justify-center shrink-0">
             <ShieldAlert className="w-6 h-6" />
-          </div>
-          {/* <div>
+          </div> */}
+        {/* <div>
             <h3 className="text-sm font-bold text-slate-900">Protected Platform Portal</h3>
             <p className="text-xs text-slate-500">
               Unauthenticated users are restricted from viewing ticket titles, diagnostics, or IT work logs to protect target client platforms.
             </p>
           </div> */}
-        </div>
+        {/* </div> */}
       </div>
     );
   }
