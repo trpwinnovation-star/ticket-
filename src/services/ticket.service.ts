@@ -292,7 +292,8 @@ export class TicketService {
     ticketId: string,
     assignedToId?: string | null,
     teamId?: string | null,
-    targetClosureDate?: string | Date | null
+    targetClosureDate?: string | Date | null,
+    priority?: TicketPriority
   ) {
     let finalTeamId = teamId || null;
     let finalAssigneeId = assignedToId || null;
@@ -319,6 +320,9 @@ export class TicketService {
     if (targetClosureDate !== undefined) {
       dataObj.targetClosureDate = targetClosureDate ? new Date(targetClosureDate) : null;
     }
+    if (priority !== undefined) {
+      dataObj.priority = priority;
+    }
 
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
@@ -342,6 +346,35 @@ export class TicketService {
       } catch (e) {
         console.warn('Assignment notification failed:', e);
       }
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Manager / Admin Update Urgency / Priority Level
+   */
+  static async updatePriority(ticketId: string, priority: TicketPriority) {
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { priority },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        team: true,
+      },
+    });
+
+    try {
+      await NotificationService.notifyStakeholders({
+        recipientIds: [updated.createdById, updated.assignedToId],
+        title: `Priority Updated on Ticket ${updated.ticketNumber}`,
+        message: `Priority level was updated to ${priority}.`,
+        type: 'STATUS_CHANGE',
+        link: `/tickets/${updated.id}`,
+      });
+    } catch (e) {
+      console.warn('Priority notification failed:', e);
     }
 
     return { source: 'prisma_database', ticket: updated };

@@ -12,6 +12,7 @@ router.post('/:id/approve', requireRole('MANAGER', 'SUPER_ADMIN'), TicketControl
 router.post('/:id/reject', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.reject);
 router.post('/:id/assign', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.assign);
 router.patch('/:id/status', requireRole('IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.updateStatus);
+router.patch('/:id/priority', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.updatePriority);
 router.post('/:id/comments', TicketController.addComment);
 
 export default router;

@@ -45,6 +45,7 @@ export default function TicketDetailPage() {
   // Manager Approval & IT Assignment State
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const [selectedPriority, setSelectedPriority] = useState<string>('MEDIUM');
   const [targetClosureDate, setTargetClosureDate] = useState<string>('');
   const [rejectReason, setRejectReason] = useState<string>('');
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
@@ -60,6 +61,7 @@ export default function TicketDetailPage() {
         setTicket(data.ticket);
         if (data.ticket.assignedToId) setAssigneeId(data.ticket.assignedToId);
         if (data.ticket.teamId) setSelectedTeamId(data.ticket.teamId);
+        if (data.ticket.priority) setSelectedPriority(data.ticket.priority);
         if (data.ticket.targetClosureDate) {
           setTargetClosureDate(new Date(data.ticket.targetClosureDate).toISOString().split('T')[0]);
         } else {
@@ -188,6 +190,20 @@ export default function TicketDetailPage() {
     }
   };
 
+  const handlePriorityChange = async (newPriority: string) => {
+    setSelectedPriority(newPriority);
+    try {
+      await fetch(`/api/v1/tickets/${ticketId}/priority`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      fetchTicket();
+    } catch (e) {
+      console.error('Priority update failed:', e);
+    }
+  };
+
   const handleApprove = async () => {
     try {
       await fetch(`/api/v1/tickets/${ticketId}/approve`, {
@@ -196,6 +212,7 @@ export default function TicketDetailPage() {
         body: JSON.stringify({
           assignedToId: assigneeId || undefined,
           teamId: selectedTeamId || undefined,
+          priority: selectedPriority || undefined,
           targetClosureDate: targetClosureDate || undefined,
         }),
       });
@@ -353,6 +370,16 @@ export default function TicketDetailPage() {
                   </option>
                 );
               })}
+            </select>
+            <select
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value)}
+              className="px-2.5 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
+            >
+              <option value="LOW">Low Priority</option>
+              <option value="MEDIUM">Medium Priority</option>
+              <option value="HIGH">High Priority</option>
+              <option value="URGENT">Urgent Priority</option>
             </select>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-bold text-amber-900">Target Closure:</span>
@@ -606,6 +633,32 @@ export default function TicketDetailPage() {
               <div>
                 <p className="text-slate-400 font-bold uppercase text-[10px]">Created By</p>
                 <p className="font-bold text-slate-800">{ticket.createdBy?.name || 'Guest User'}</p>
+              </div>
+
+              <div>
+                <p className="text-slate-400 font-bold uppercase text-[10px] mb-1">Urgency / Priority Level</p>
+                {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') ? (
+                  <select
+                    value={ticket.priority || selectedPriority || 'MEDIUM'}
+                    onChange={(e) => handlePriorityChange(e.target.value)}
+                    className="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs text-slate-800 focus:ring-2 focus:ring-[#c16d18]/40"
+                  >
+                    <option value="LOW">Low Priority</option>
+                    <option value="MEDIUM">Medium Priority</option>
+                    <option value="HIGH">High Priority</option>
+                    <option value="URGENT">Urgent Priority</option>
+                  </select>
+                ) : (
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider inline-block ${
+                    ticket.priority === 'URGENT'
+                      ? 'bg-red-100 text-red-700 border border-red-200'
+                      : ticket.priority === 'HIGH'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}>
+                    {ticket.priority || 'MEDIUM'}
+                  </span>
+                )}
               </div>
 
               {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') ? (

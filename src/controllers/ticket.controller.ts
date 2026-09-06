@@ -123,8 +123,25 @@ export class TicketController {
   static async assign(req: Request, res: Response, next: NextFunction) {
     try {
       const ticketId = String(req.params.id);
-      const { assignedToId, teamId, targetClosureDate } = req.body;
-      const result = await TicketService.assignTicket(ticketId, assignedToId, teamId, targetClosureDate);
+      const { assignedToId, teamId, targetClosureDate, priority } = req.body;
+      const result = await TicketService.assignTicket(ticketId, assignedToId, teamId, targetClosureDate, priority);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * PATCH /api/v1/tickets/:id/priority
+   */
+  static async updatePriority(req: Request, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { priority } = req.body;
+      if (!priority || !['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(priority)) {
+        return res.status(400).json({ success: false, message: 'Valid priority level is required (LOW, MEDIUM, HIGH, URGENT).' });
+      }
+      const result = await TicketService.updatePriority(ticketId, priority);
       res.json({ success: true, ...result });
     } catch (err) {
       next(err);
