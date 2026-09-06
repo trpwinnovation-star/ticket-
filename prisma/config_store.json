@@ -1,0 +1,73 @@
+{
+  "websites": [
+    {
+      "id": "web-1788261626494",
+      "name": "Betel PV",
+      "createdAt": "2026-09-01T11:20:26.494Z"
+    },
+    {
+      "id": "web-1788261543063",
+      "name": "Betel SSO",
+      "createdAt": "2026-09-01T11:19:03.063Z"
+    },
+    {
+      "id": "web-1788261535928",
+      "name": "Betel Meet",
+      "createdAt": "2026-09-01T11:18:55.928Z"
+    },
+    {
+      "id": "web-1788261522362",
+      "name": "Betel Utility",
+      "createdAt": "2026-09-01T11:18:42.362Z"
+    },
+    {
+      "id": "web-1788261513136",
+      "name": "Betel Jobs",
+      "createdAt": "2026-09-01T11:18:33.136Z"
+    }
+  ],
+  "modules": [
+    {
+      "id": "mod-1",
+      "name": "Billing & Invoicing",
+      "category": "Core Finance",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-2",
+      "name": "Authentication & SSO",
+      "category": "Security",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-3",
+      "name": "User Dashboard & Analytics",
+      "category": "Frontend UI",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-4",
+      "name": "Payment Gateway Integration",
+      "category": "Payments",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-5",
+      "name": "Reports & Data Export",
+      "category": "Analytics",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-6",
+      "name": "API & Subcontractor Integrations",
+      "category": "Backend Systems",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    },
+    {
+      "id": "mod-7",
+      "name": "Infrastructure & Server Operations",
+      "category": "DevOps",
+      "createdAt": "2026-09-01T11:16:46.747Z"
+    }
+  ]
+}

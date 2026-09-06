@@ -1,0 +1,193 @@
+// Prisma Schema for Enterprise Ticket & Recommendation System
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  GUEST_USER   // Level 1: End Customer / Portal Guest
+  IT_SOFTWARE  // Level 2: IT / Software / DevOps Team
+  MANAGER      // Level 3: Client Account Owner / Organization Manager
+  SUPER_ADMIN  // Level 4: Global Platform Administrator
+}
+
+enum TicketStatus {
+  SUBMITTED         // Initial submission by Guest
+  PENDING_APPROVAL  // Manager inbox awaiting review
+  APPROVED          // Approved by Manager, ready for assignment
+  REJECTED          // Rejected by Manager
+  ASSIGNED          // Assigned to IT Staff
+  IN_PROGRESS       // Active work in progress by IT Team
+  NEED_MORE_DETAILS // IT Team requested clarification
+  PENDING_TESTING   // IT Team completed fix, pending verification
+  RESOLVED          // Issue solved
+  COMPLETED         // Verified and closed out
+  CLOSED            // Closed ticket
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RecommendationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  PLANNED
+  IN_DEVELOPMENT
+  IMPLEMENTED
+  DECLINED
+}
+
+model User {
+  id                      String               @id @default(uuid())
+  name                    String
+  email                   String               @unique
+  password                String               @default("")
+  role                    Role                 @default(GUEST_USER)
+  avatar                  String?
+  jobTitle                String?
+  teamId                  String?
+  team                    Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdTickets          Ticket[]             @relation("TicketCreator")
+  assignedTickets         Ticket[]             @relation("TicketAssignee")
+  comments                Comment[]
+  workLogs                WorkLog[]
+  recommendations         Recommendation[]
+  assignedRecommendations Recommendation[]     @relation("RecommendationAssignee")
+  recommendationVotes     RecommendationVote[]
+  notifications           Notification[]
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+}
+
+model Team {
+  id              String           @id @default(uuid())
+  name            String           // e.g. "DevOps Subcontractor", "Backend Engineering", "IT Infrastructure"
+  description     String?
+  members         User[]
+  tickets         Ticket[]
+  recommendations Recommendation[]
+  createdAt       DateTime         @default(now())
+}
+
+model Ticket {
+  id              String         @id @default(uuid())
+  ticketNumber    String         @unique // e.g. "TKT-1001"
+  title           String
+  description     String
+  websiteName     String?        // Target Website / Portal
+  module          String?        // Target Module e.g. "Billing", "Auth", "Dashboard"
+  category        String         @default("Software Bug") // "Software Bug", "IT Request", "Infrastructure", "Feature Access"
+  priority        TicketPriority @default(MEDIUM)
+  status          TicketStatus   @default(SUBMITTED)
+  rejectionReason String?
+
+  createdById String
+  createdBy   User   @relation("TicketCreator", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  comments          Comment[]
+  workLogs          WorkLog[]
+  attachments       Attachment[]
+  targetClosureDate DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model Comment {
+  id               String          @id @default(uuid())
+  ticketId         String?
+  ticket           Ticket?         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  recommendationId String?
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content          String
+  isInternal       Boolean         @default(false) // Level 2 IT Team internal notes vs Level 1 Public comments
+  createdAt        DateTime        @default(now())
+}
+
+model WorkLog {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String   // IT Staff member logging work
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hoursSpent  Float    // e.g., 2.5
+  workDate    DateTime @default(now())
+  description String
+  createdAt   DateTime @default(now())
+}
+
+model Recommendation {
+  id            String               @id @default(uuid())
+  title         String
+  description   String
+  websiteName   String               // Website URL / Name
+  moduleName    String               // Target Module
+  screenshotUrl String?              // Image preview base64 or URL
+  status        RecommendationStatus @default(SUBMITTED)
+  authorId      String
+  author        User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?   @relation("RecommendationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  upvotes       Int                  @default(1)
+  votes         RecommendationVote[]
+  comments      Comment[]
+  createdAt     DateTime             @default(now())
+  attachments   Attachment[]
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // "COMMENT", "STATUS_CHANGE", "ASSIGNMENT", "NEED_INFO"
+  link      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model RecommendationVote {
+  id               String         @id @default(uuid())
+  recommendationId String
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([recommendationId, userId])
+}
+
+model Attachment {
+  id               String          @id @default(uuid())
+  fileName         String
+  fileUrl          String
+  fileType         String          // e.g., "image/png", "application/pdf"
+  fileSize         Int             // Bytes
+  ticketId         String?
+  ticket           Ticket?         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  recommendationId String?
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+}

@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #c16d18;
+  --primary-hover: #a35810;
+  --primary-glow: rgba(193, 109, 24, 0.15);
+  --primary-border: rgba(193, 109, 24, 0.25);
+  --bg-canvas: #f8f8f8;
+  --bg-surface: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Glassmorphism Surface */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-card:hover {
+  box-shadow: 0 8px 25px rgba(193, 109, 24, 0.08);
+  border-color: rgba(193, 109, 24, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Primary Theme Utilities */
+.bg-brand {
+  background-color: var(--primary);
+}
+.text-brand {
+  color: var(--primary);
+}
+.border-brand {
+  border-color: var(--primary);
+}
+.hover-bg-brand:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Status Badge Themes */
+.badge-status-SUBMITTED,
+.badge-status-PENDING_APPROVAL {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.badge-status-APPROVED {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-status-REJECTED {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.badge-status-ASSIGNED,
+.badge-status-IN_PROGRESS {
+  background-color: #fff7ed;
+  color: #c16d18;
+  border: 1px solid #fed7aa;
+}
+
+.badge-status-NEED_MORE_DETAILS {
+  background-color: #fce7f3;
+  color: #9d174d;
+  border: 1px solid #fbcfe8;
+}
+
+.badge-status-PENDING_TESTING {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.badge-status-RESOLVED,
+.badge-status-COMPLETED,
+.badge-status-CLOSED {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+/* Priority Badges */
+.badge-priority-URGENT {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+.badge-priority-HIGH {
+  background-color: #f97316;
+  color: #ffffff;
+}
+.badge-priority-MEDIUM {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+.badge-priority-LOW {
+  background-color: #64748b;
+  color: #ffffff;
+}
+
+/* Custom Pulsing Status Dot */
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: inherit;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
