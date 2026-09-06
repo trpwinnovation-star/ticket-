@@ -329,8 +329,12 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">
-                  <p className="text-[10px] uppercase font-bold text-purple-200">SLA Approval Rate</p>
-                  <p className="text-2xl font-black text-white">{metrics.approvalRate || 100}%</p>
+                  <p className="text-[10px] uppercase font-bold text-purple-200">Approved Tickets</p>
+                  <p className="text-2xl font-black text-white">
+                    {metrics.approvedTickets !== undefined
+                      ? metrics.approvedTickets
+                      : tickets.filter((t) => ['APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'COMPLETED', 'CLOSED'].includes(t.status)).length}
+                  </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">
                   <p className="text-[10px] uppercase font-bold text-purple-200">Subcontractor Teams</p>
