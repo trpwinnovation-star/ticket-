@@ -15,7 +15,9 @@
     "lucide-react": "^1.34.0",
     "next": "16.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -27,11 +29,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "prisma": "^5.22.0",
-    "tailwindcss": "^4",
-    "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "tailwindcss": "^4"
   },
   "prisma": {
-    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+    "seed": "npx ts-node prisma/seed.ts"
   }
 }
