@@ -46,12 +46,12 @@ export default function NewTicketPage() {
   const [attachments, setAttachments] = useState<
     { fileName: string; fileUrl: string; fileType: string; fileSize: number }[]
   >([
-    {
-      fileName: 'error_screenshot_log.png',
-      fileUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600',
-      fileType: 'image/png',
-      fileSize: 342000,
-    },
+    // {
+    //   fileName: 'error_screenshot_log.png',
+    //   fileUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600',
+    //   fileType: 'image/png',
+    //   fileSize: 342000,
+    // },
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -50,7 +50,7 @@ export default function DashboardPage() {
         const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
         const list = JSON.parse(raw);
         setSeenTicketIds(new Set(list));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [currentUser]);
 
@@ -244,17 +244,17 @@ export default function DashboardPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-white/20 text-white border border-white/30 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm backdrop-blur-xs">
-                Role: {currentRole.replace('_', ' ')}
+                {currentRole.replace('_', ' ')}
               </span>
               <span className="text-amber-100 text-xs font-medium">
-                {currentRole === 'GUEST_USER' && 'Level 1: End Customer / Guest'}
-                {currentRole === 'IT_SOFTWARE' && 'Level 2: IT & Software DevOps Team'}
-                {currentRole === 'MANAGER' && 'Level 3: Client Account Owner / Manager'}
-                {currentRole === 'SUPER_ADMIN' && 'Level 4: Global Platform Administrator'}
+                {currentRole === 'GUEST_USER'}
+                {currentRole === 'IT_SOFTWARE'}
+                {currentRole === 'MANAGER'}
+                {currentRole === 'SUPER_ADMIN'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {currentUser?.name}!
+              Welcome, {currentUser?.name}!
             </h1>
             <p className="text-amber-100/90 text-sm max-w-2xl">
               {currentRole === 'GUEST_USER'
@@ -467,21 +467,19 @@ export default function DashboardPage() {
                   <div className="flex items-center bg-blue-100/70 p-1 rounded-xl border border-blue-200">
                     <button
                       onClick={() => setWorkDeskTab('ACTIVE')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        workDeskTab === 'ACTIVE'
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-blue-900 hover:text-blue-950'
-                      }`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'ACTIVE'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-blue-900 hover:text-blue-950'
+                        }`}
                     >
                       Active Work ({activeAssignedTickets.length})
                     </button>
                     <button
                       onClick={() => setWorkDeskTab('PENDING_TESTING')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        workDeskTab === 'PENDING_TESTING'
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-blue-900 hover:text-blue-950'
-                      }`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'PENDING_TESTING'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-blue-900 hover:text-blue-950'
+                        }`}
                     >
                       In Testing ({pendingTestingTickets.length})
                     </button>
@@ -527,11 +525,10 @@ export default function DashboardPage() {
 
                         <Link
                           href={`/tickets/${t.id}`}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                            !isSeen
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${!isSeen
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
                         >
                           {!isSeen ? 'Open New Ticket' : 'View Ticket Details'}
                         </Link>

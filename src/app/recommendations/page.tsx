@@ -100,7 +100,7 @@ export default function RecommendationsPage() {
       await fetch(`/api/v1/recommendations/${recId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId: teamId || null, status: 'IN_DEVELOPMENT' }),
+        body: JSON.stringify({ teamId: teamId || null }),
       });
       fetchRecommendations();
     } catch (e) {
@@ -118,7 +118,7 @@ export default function RecommendationsPage() {
       await fetch(`/api/v1/recommendations/${recId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId, status: 'IN_DEVELOPMENT' }),
+        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId }),
       });
       fetchRecommendations();
     } catch (e) {
@@ -535,10 +535,10 @@ export default function RecommendationsPage() {
                         </select>
                       </div>
 
-                      {rec.status === 'IN_DEVELOPMENT' || rec.status === 'IMPLEMENTED' ? (
+                      {rec.isConverted || rec.status === 'IMPLEMENTED' ? (
                         <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-bold rounded-lg flex items-center gap-1 sm:ml-auto">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Converted to Ticket</span>
+                          <span>Converted to Ticket {rec.convertedTicketNumber ? `(#${rec.convertedTicketNumber})` : ''}</span>
                         </div>
                       ) : (
                         <button

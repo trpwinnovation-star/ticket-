@@ -90,7 +90,30 @@ export class RecommendationService {
       }));
     }
 
-    return { source: 'prisma_database', recommendations };
+    const recsWithVotes = (recommendations || []).map((rec) => ({
+      ...rec,
+      votes: (rec.votes || []).filter((v: any) => v.recommendationId === rec.id),
+    }));
+
+    // Attach isConverted and convertedTicketNumber check
+    const recsWithTicketCheck = await Promise.all(
+      recsWithVotes.map(async (rec) => {
+        const existingTicket = await prisma.ticket.findFirst({
+          where: {
+            title: `[Suggestion] ${rec.title}`,
+            createdById: rec.authorId,
+          },
+          select: { id: true, ticketNumber: true },
+        });
+        return {
+          ...rec,
+          convertedTicketNumber: existingTicket?.ticketNumber || null,
+          isConverted: Boolean(existingTicket),
+        };
+      })
+    );
+
+    return { source: 'prisma_database', recommendations: recsWithTicketCheck };
   }
 
   /**
@@ -139,7 +162,14 @@ export class RecommendationService {
       include: { author: true, assignedTo: true, team: true, votes: true },
     });
 
-    return { source: 'prisma_database', recommendation: updatedRec || rec };
+    return {
+      source: 'prisma_database',
+      recommendation: {
+        ...(updatedRec || rec),
+        convertedTicketNumber: null,
+        isConverted: false,
+      },
+    };
   }
 
   /**
@@ -150,14 +180,10 @@ export class RecommendationService {
       throw new Error('User account identification required to upvote.');
     }
 
-    // Check if this user has already voted for this recommendation
     let existingVote: any = null;
     try {
       existingVote = await prisma.recommendationVote.findFirst({
-        where: {
-          recommendationId: recId,
-          userId: userId,
-        },
+        where: { recommendationId: recId, userId: userId },
       });
     } catch (e) {
       try {
@@ -167,46 +193,48 @@ export class RecommendationService {
     }
 
     if (existingVote) {
-      // Remove upvote (toggle off)
       try {
-        await prisma.recommendationVote.delete({
-          where: { id: existingVote.id },
-        });
+        await prisma.recommendationVote.delete({ where: { id: existingVote.id } });
       } catch (e) {
         await prisma.$executeRaw`DELETE FROM "RecommendationVote" WHERE "id" = ${existingVote.id}`;
       }
-
-      const updated = await prisma.recommendation.update({
-        where: { id: recId },
-        data: { upvotes: { decrement: 1 } },
-        include: { author: true, assignedTo: true, team: true, votes: true },
-      });
-      return { source: 'prisma_database', recommendation: updated, hasVoted: false };
+      await prisma.recommendation.update({ where: { id: recId }, data: { upvotes: { decrement: 1 } } });
     } else {
-      // Add upvote (toggle on)
       try {
-        await prisma.recommendationVote.create({
-          data: {
-            recommendationId: recId,
-            userId: userId,
-          },
-        });
+        await prisma.recommendationVote.create({ data: { recommendationId: recId, userId: userId } });
       } catch (e) {
         const voteId = `vote-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         await prisma.$executeRaw`INSERT INTO "RecommendationVote" ("id", "recommendationId", "userId", "createdAt") VALUES (${voteId}, ${recId}, ${userId}, NOW())`;
       }
-
-      const updated = await prisma.recommendation.update({
-        where: { id: recId },
-        data: { upvotes: { increment: 1 } },
-        include: { author: true, assignedTo: true, team: true, votes: true },
-      });
-      return { source: 'prisma_database', recommendation: updated, hasVoted: true };
+      await prisma.recommendation.update({ where: { id: recId }, data: { upvotes: { increment: 1 } } });
     }
+
+    const updated = await prisma.recommendation.findUnique({
+      where: { id: recId },
+      include: { author: true },
+    });
+    const [populated] = await RecommendationService.populateRelations([updated]);
+
+    const existingTicket = await prisma.ticket.findFirst({
+      where: {
+        title: `[Suggestion] ${updated!.title}`,
+        createdById: updated!.authorId,
+      },
+      select: { id: true, ticketNumber: true },
+    });
+
+    return {
+      source: 'prisma_database',
+      recommendation: {
+        ...populated,
+        convertedTicketNumber: existingTicket?.ticketNumber || null,
+        isConverted: Boolean(existingTicket),
+      },
+    };
   }
 
   /**
-   * Update recommendation status and team/specialist assignment (Level 3/4 action)
+   * Update recommendation status and team/specialist assignment
    */
   static async updateStatus(
     recId: string,
@@ -236,7 +264,23 @@ export class RecommendationService {
       include: { author: true },
     });
     const [populated] = await RecommendationService.populateRelations([updated]);
-    return { source: 'prisma_database', recommendation: populated };
+
+    const existingTicket = await prisma.ticket.findFirst({
+      where: {
+        title: `[Suggestion] ${updated!.title}`,
+        createdById: updated!.authorId,
+      },
+      select: { id: true, ticketNumber: true },
+    });
+
+    return {
+      source: 'prisma_database',
+      recommendation: {
+        ...populated,
+        convertedTicketNumber: existingTicket?.ticketNumber || null,
+        isConverted: Boolean(existingTicket),
+      },
+    };
   }
 
   /**
@@ -270,7 +314,7 @@ export class RecommendationService {
       }
     }
 
-    const targetStatus = status || RecommendationStatus.IN_DEVELOPMENT;
+    const targetStatus = status !== undefined ? status : rec.status;
 
     await prisma.$executeRaw`
       UPDATE "Recommendation"
@@ -285,7 +329,23 @@ export class RecommendationService {
       include: { author: true },
     });
     const [populated] = await RecommendationService.populateRelations([updated]);
-    return { source: 'prisma_database', recommendation: populated };
+
+    const existingTicket = await prisma.ticket.findFirst({
+      where: {
+        title: `[Suggestion] ${updated!.title}`,
+        createdById: updated!.authorId,
+      },
+      select: { id: true, ticketNumber: true },
+    });
+
+    return {
+      source: 'prisma_database',
+      recommendation: {
+        ...populated,
+        convertedTicketNumber: existingTicket?.ticketNumber || null,
+        isConverted: Boolean(existingTicket),
+      },
+    };
   }
 
   /**
@@ -301,11 +361,6 @@ export class RecommendationService {
       throw new Error(`Recommendation ${recId} not found.`);
     }
 
-    // Block converting a suggestion multiple times
-    if (rec.status === RecommendationStatus.IN_DEVELOPMENT || rec.status === RecommendationStatus.IMPLEMENTED) {
-      throw new Error(`This suggestion has already been converted into a ticket and is currently in ${rec.status.replace('_', ' ')} status.`);
-    }
-
     const existingTicket = await prisma.ticket.findFirst({
       where: {
         title: `[Suggestion] ${rec.title}`,
@@ -317,12 +372,10 @@ export class RecommendationService {
       throw new Error(`This suggestion has already been converted into active Ticket #${existingTicket.ticketNumber}! Multiple conversions are not allowed.`);
     }
 
-    const count = await prisma.ticket.count();
-    const ticketNumber = `TKT-${1001 + count}`;
+    const ticketNumber = `TKT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const targetTeam = teamId !== undefined ? teamId : (rec as any).teamId;
     const targetAssignee = assignedToId !== undefined ? assignedToId : (rec as any).assignedToId;
 
-    // Build attachments array to carry over screenshots and files to the ticket
     const attachmentsToCreate: any[] = [];
     if (rec.screenshotUrl) {
       attachmentsToCreate.push({
@@ -383,7 +436,14 @@ export class RecommendationService {
     });
 
     const [populatedRec] = await RecommendationService.populateRelations([updatedRec]);
-    return { source: 'prisma_database', ticket, recommendation: populatedRec };
+    return {
+      source: 'prisma_database',
+      ticket,
+      recommendation: {
+        ...populatedRec,
+        convertedTicketNumber: ticket.ticketNumber,
+        isConverted: true,
+      },
+    };
   }
 }
-

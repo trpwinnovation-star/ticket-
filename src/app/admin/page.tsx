@@ -106,7 +106,7 @@ export default function SuperAdminDashboard() {
       await fetch(`/api/v1/recommendations/${recId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId: teamId || null, status: 'IN_DEVELOPMENT' }),
+        body: JSON.stringify({ teamId: teamId || null }),
       });
       fetchRecommendations();
     } catch (e) {
@@ -124,7 +124,7 @@ export default function SuperAdminDashboard() {
       await fetch(`/api/v1/recommendations/${recId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId, status: 'IN_DEVELOPMENT' }),
+        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId }),
       });
       fetchRecommendations();
     } catch (e) {
@@ -575,10 +575,10 @@ export default function SuperAdminDashboard() {
                       </select>
                     </td>
                     <td className="p-4 text-right">
-                      {rec.status === 'IN_DEVELOPMENT' || rec.status === 'IMPLEMENTED' ? (
+                      {rec.isConverted || rec.status === 'IMPLEMENTED' ? (
                         <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>Converted</span>
+                          <span>Converted {rec.convertedTicketNumber ? `(#${rec.convertedTicketNumber})` : ''}</span>
                         </span>
                       ) : (
                         <button
