@@ -41,6 +41,18 @@ export default function DashboardPage() {
   const [rejectReason, setRejectReason] = useState<string>('');
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [showApproveModal, setShowApproveModal] = useState<boolean>(false);
+  const [seenTicketIds, setSeenTicketIds] = useState<Set<string>>(new Set());
+  const [workDeskTab, setWorkDeskTab] = useState<'ACTIVE' | 'PENDING_TESTING'>('ACTIVE');
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      try {
+        const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
+        const list = JSON.parse(raw);
+        setSeenTicketIds(new Set(list));
+      } catch (e) {}
+    }
+  }, [currentUser]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -125,24 +137,54 @@ export default function DashboardPage() {
   };
 
   const handleUpvote = async (recId: string) => {
+    if (!currentUser?.id) return;
+
+    setRecommendations((prevRecs) =>
+      prevRecs.map((rec) => {
+        if (rec.id !== recId) return rec;
+        const currentVotes = Array.isArray(rec.votes) ? rec.votes : [];
+        const hasVoted = currentVotes.some((v: any) => v.userId === currentUser.id);
+        const newVotes = hasVoted
+          ? currentVotes.filter((v: any) => v.userId !== currentUser.id)
+          : [...currentVotes, { userId: currentUser.id, recommendationId: recId }];
+        const newUpvotes = hasVoted ? Math.max(0, rec.upvotes - 1) : rec.upvotes + 1;
+        return { ...rec, upvotes: newUpvotes, votes: newVotes };
+      })
+    );
+
     try {
-      await fetch(`/api/v1/recommendations/${recId}/upvote`, {
+      const res = await fetch(`/api/v1/recommendations/${recId}/upvote`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
-      fetchData();
+      const data = await res.json();
+      if (data.recommendation) {
+        setRecommendations((prevRecs) =>
+          prevRecs.map((r) => (r.id === recId ? data.recommendation : r))
+        );
+      }
     } catch (e) {
       console.error('Upvote failed:', e);
+      fetchData();
     }
   };
 
   const pendingTickets = tickets.filter((t) => t.status === 'PENDING_APPROVAL' || t.status === 'SUBMITTED');
   const mySubmittedTickets = tickets.filter((t) => t.createdById === currentUser?.id);
-  const myAssignedTickets = tickets.filter(
+
+  const activeAssignedTickets = tickets.filter(
     (t) =>
       (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
-      !['COMPLETED', 'CLOSED', 'RESOLVED'].includes(t.status)
+      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED'].includes(t.status)
   );
+
+  const pendingTestingTickets = tickets.filter(
+    (t) =>
+      (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
+      t.status === 'PENDING_TESTING'
+  );
+
+  const myAssignedTickets = workDeskTab === 'ACTIVE' ? activeAssignedTickets : pendingTestingTickets;
 
   if (!isAuthenticated) {
     return (
@@ -415,41 +457,87 @@ export default function DashboardPage() {
           {/* IT Staff Desk (Level 2) */}
           {currentRole === 'IT_SOFTWARE' && (
             <div className="bg-white rounded-2xl border border-blue-200 shadow-xs overflow-hidden">
-              <div className="px-6 py-4 bg-blue-50/80 border-b border-blue-200 flex items-center justify-between">
+              <div className="px-6 py-4 bg-blue-50/80 border-b border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Wrench className="w-5 h-5 text-blue-600" />
                   <h2 className="font-extrabold text-slate-900 text-sm">Assigned Technical Work Desk</h2>
-                  <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {myAssignedTickets.length} Assigned
-                  </span>
                 </div>
-                <Link href="/team" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
-                  <span>Go to Work Desk</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-blue-100/70 p-1 rounded-xl border border-blue-200">
+                    <button
+                      onClick={() => setWorkDeskTab('ACTIVE')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        workDeskTab === 'ACTIVE'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-blue-900 hover:text-blue-950'
+                      }`}
+                    >
+                      Active Work ({activeAssignedTickets.length})
+                    </button>
+                    <button
+                      onClick={() => setWorkDeskTab('PENDING_TESTING')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        workDeskTab === 'PENDING_TESTING'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-blue-900 hover:text-blue-950'
+                      }`}
+                    >
+                      In Testing ({pendingTestingTickets.length})
+                    </button>
+                  </div>
+
+                  <Link href="/team" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 shrink-0 ml-2">
+                    <span>Go to Work Desk</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
 
               <div className="divide-y divide-slate-100">
                 {myAssignedTickets.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-xs font-medium">
-                    No tickets currently assigned to you in the database.
+                    {workDeskTab === 'ACTIVE'
+                      ? 'No active tickets currently assigned to you.'
+                      : 'No tickets currently pending testing.'}
                   </div>
                 ) : (
-                  myAssignedTickets.map((t) => (
-                    <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
-                      <div>
-                        <span className="font-mono text-xs font-bold text-slate-500">{t.ticketNumber}</span>
-                        <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
-                        <p className="text-xs text-slate-500">Status: <strong className="text-[#c16d18]">{t.status}</strong></p>
+                  myAssignedTickets.map((t) => {
+                    const isSeen = seenTicketIds.has(t.id);
+                    return (
+                      <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-slate-500">{t.ticketNumber}</span>
+                            {!isSeen ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse">
+                                NEW UNREAD
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
+                                VIEWED
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                              {t.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
+                        </div>
+
+                        <Link
+                          href={`/tickets/${t.id}`}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                            !isSeen
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {!isSeen ? 'Open New Ticket' : 'View Ticket Details'}
+                        </Link>
                       </div>
-                      <Link
-                        href={`/tickets/${t.id}`}
-                        className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
-                      >
-                        View Ticket
-                      </Link>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

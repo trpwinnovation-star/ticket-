@@ -165,4 +165,24 @@ export class TicketController {
       next(err);
     }
   }
+
+  /**
+   * PATCH /api/v1/tickets/:id
+   */
+  static async update(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { title, description, websiteName, module, category, priority } = req.body;
+      if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+
+      const result = await TicketService.updateTicket(
+        ticketId,
+        { title, description, websiteName, module, category, priority },
+        req.user
+      );
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

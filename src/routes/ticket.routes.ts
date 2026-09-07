@@ -13,6 +13,7 @@ router.post('/:id/reject', requireRole('MANAGER', 'SUPER_ADMIN'), TicketControll
 router.post('/:id/assign', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.assign);
 router.patch('/:id/status', requireRole('IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.updateStatus);
 router.patch('/:id/priority', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.updatePriority);
+router.patch('/:id', TicketController.update);
 router.post('/:id/comments', TicketController.addComment);
 
 export default router;

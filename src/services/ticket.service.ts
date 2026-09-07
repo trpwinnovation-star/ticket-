@@ -33,6 +33,15 @@ export interface RejectTicketDTO {
   rejectionReason: string;
 }
 
+export interface UpdateTicketDTO {
+  title?: string;
+  description?: string;
+  websiteName?: string;
+  module?: string;
+  category?: string;
+  priority?: TicketPriority;
+}
+
 export class TicketService {
   /**
    * Fetch all tickets with full relations
@@ -375,6 +384,62 @@ export class TicketService {
       });
     } catch (e) {
       console.warn('Priority notification failed:', e);
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Edit / Update Ticket details (by Ticket Creator, Manager, or Admin)
+   */
+  static async updateTicket(ticketId: string, dto: UpdateTicketDTO, actor: Actor) {
+    const current = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!current) {
+      throw new Error('Ticket not found.');
+    }
+
+    const isManagerOrAdmin = actor.role === 'MANAGER' || actor.role === 'SUPER_ADMIN';
+    const isCreator = current.createdById === actor.id;
+
+    if (!isManagerOrAdmin && !isCreator) {
+      throw new Error('You do not have permission to edit this ticket.');
+    }
+
+    if (isCreator && !isManagerOrAdmin) {
+      if (['RESOLVED', 'COMPLETED', 'CLOSED'].includes(current.status)) {
+        throw new Error('Ticket details cannot be edited once resolved or closed.');
+      }
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        title: dto.title !== undefined ? dto.title : undefined,
+        description: dto.description !== undefined ? dto.description : undefined,
+        websiteName: dto.websiteName !== undefined ? dto.websiteName : undefined,
+        module: dto.module !== undefined ? dto.module : undefined,
+        category: dto.category !== undefined ? dto.category : undefined,
+        priority: dto.priority !== undefined ? dto.priority : undefined,
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        team: true,
+        attachments: true,
+      },
+    });
+
+    try {
+      await NotificationService.notifyStakeholders({
+        recipientIds: [updated.createdById, updated.assignedToId],
+        excludeUserId: actor.id,
+        title: `Ticket ${updated.ticketNumber} Details Updated`,
+        message: `Ticket details were updated by ${isCreator ? 'creator' : 'manager'}.`,
+        type: 'STATUS_CHANGE',
+        link: `/tickets/${updated.id}`,
+      });
+    } catch (e) {
+      console.warn('Update notification failed:', e);
     }
 
     return { source: 'prisma_database', ticket: updated };

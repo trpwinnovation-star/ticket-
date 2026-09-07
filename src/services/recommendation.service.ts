@@ -48,40 +48,49 @@ export class RecommendationService {
   /**
    * Get all recommendations with author details, assigned team, assigned specialist & upvotes
    */
+  /**
+   * Get all recommendations with author details, assigned team, assigned specialist & upvotes
+   */
   static async getAll() {
-    const recommendations: any[] = await prisma.$queryRaw`
-      SELECT r.*,
-             json_build_object(
-               'id', u.id,
-               'name', u.name,
-               'email', u.email,
-               'avatar', u.avatar,
-               'role', u.role
-             ) as author
-      FROM "Recommendation" r
-      LEFT JOIN "User" u ON r."authorId" = u.id
-      ORDER BY r."createdAt" DESC
-    `;
-
-    const populatedRecs = await RecommendationService.populateRelations(recommendations);
-
-    let votes: any[] = [];
+    let recommendations: any[] = [];
     try {
-      if ((prisma as any).recommendationVote?.findMany) {
-        votes = await (prisma as any).recommendationVote.findMany();
-      } else {
-        votes = await prisma.$queryRaw`SELECT * FROM "RecommendationVote"`;
-      }
+      recommendations = await prisma.recommendation.findMany({
+        include: {
+          author: true,
+          assignedTo: true,
+          team: true,
+          votes: true,
+          attachments: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
     } catch (e) {
-      console.warn('Failed to fetch recommendation votes:', e);
+      console.warn('Primary Prisma findMany query failed, using queryRaw fallback:', e);
+      const rawRecs: any[] = await prisma.$queryRaw`
+        SELECT r.*,
+               json_build_object(
+                 'id', u.id,
+                 'name', u.name,
+                 'email', u.email,
+                 'avatar', u.avatar,
+                 'role', u.role
+               ) as author
+        FROM "Recommendation" r
+        LEFT JOIN "User" u ON r."authorId" = u.id
+        ORDER BY r."createdAt" DESC
+      `;
+      const populated = await RecommendationService.populateRelations(rawRecs);
+      let votes: any[] = [];
+      try {
+        votes = await prisma.$queryRaw`SELECT * FROM "RecommendationVote"`;
+      } catch (err) {}
+      recommendations = populated.map((rec) => ({
+        ...rec,
+        votes: votes.filter((v) => v.recommendationId === rec.id),
+      }));
     }
 
-    const recsWithVotes = populatedRecs.map((rec) => ({
-      ...rec,
-      votes: votes.filter((v) => v.recommendationId === rec.id),
-    }));
-
-    return { source: 'prisma_database', recommendations: recsWithVotes };
+    return { source: 'prisma_database', recommendations };
   }
 
   /**
@@ -107,28 +116,30 @@ export class RecommendationService {
         authorId: authorId,
         upvotes: 1,
       },
-      include: { author: true },
+      include: { author: true, votes: true },
     });
 
     // Create the initial vote record for the author
     try {
-      if ((prisma as any).recommendationVote?.create) {
-        await (prisma as any).recommendationVote.create({
-          data: {
-            recommendationId: rec.id,
-            userId: authorId,
-          },
-        });
-      } else {
+      await prisma.recommendationVote.create({
+        data: {
+          recommendationId: rec.id,
+          userId: authorId,
+        },
+      });
+    } catch (e) {
+      try {
         const voteId = `vote-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         await prisma.$executeRaw`INSERT INTO "RecommendationVote" ("id", "recommendationId", "userId", "createdAt") VALUES (${voteId}, ${rec.id}, ${authorId}, NOW())`;
-      }
-    } catch (e) {
-      console.warn('Failed to create initial recommendation vote record:', e);
+      } catch (err) {}
     }
 
-    const [populated] = await RecommendationService.populateRelations([rec]);
-    return { source: 'prisma_database', recommendation: { ...populated, votes: [{ userId: authorId }] } };
+    const updatedRec = await prisma.recommendation.findUnique({
+      where: { id: rec.id },
+      include: { author: true, assignedTo: true, team: true, votes: true },
+    });
+
+    return { source: 'prisma_database', recommendation: updatedRec || rec };
   }
 
   /**
@@ -142,67 +153,55 @@ export class RecommendationService {
     // Check if this user has already voted for this recommendation
     let existingVote: any = null;
     try {
-      if ((prisma as any).recommendationVote?.findFirst) {
-        existingVote = await (prisma as any).recommendationVote.findFirst({
-          where: {
-            recommendationId: recId,
-            userId: userId,
-          },
-        });
-      } else {
+      existingVote = await prisma.recommendationVote.findFirst({
+        where: {
+          recommendationId: recId,
+          userId: userId,
+        },
+      });
+    } catch (e) {
+      try {
         const rows: any[] = await prisma.$queryRaw`SELECT * FROM "RecommendationVote" WHERE "recommendationId" = ${recId} AND "userId" = ${userId} LIMIT 1`;
         existingVote = rows[0] || null;
-      }
-    } catch (e) {
-      console.warn('Failed to query vote record:', e);
+      } catch (err) {}
     }
 
     if (existingVote) {
       // Remove upvote (toggle off)
       try {
-        if ((prisma as any).recommendationVote?.delete) {
-          await (prisma as any).recommendationVote.delete({
-            where: { id: existingVote.id },
-          });
-        } else {
-          await prisma.$executeRaw`DELETE FROM "RecommendationVote" WHERE "id" = ${existingVote.id}`;
-        }
+        await prisma.recommendationVote.delete({
+          where: { id: existingVote.id },
+        });
       } catch (e) {
-        console.warn('Failed to delete vote record:', e);
+        await prisma.$executeRaw`DELETE FROM "RecommendationVote" WHERE "id" = ${existingVote.id}`;
       }
 
       const updated = await prisma.recommendation.update({
         where: { id: recId },
         data: { upvotes: { decrement: 1 } },
-        include: { author: true },
+        include: { author: true, assignedTo: true, team: true, votes: true },
       });
-      const [populated] = await RecommendationService.populateRelations([updated]);
-      return { source: 'prisma_database', recommendation: populated, hasVoted: false };
+      return { source: 'prisma_database', recommendation: updated, hasVoted: false };
     } else {
       // Add upvote (toggle on)
       try {
-        if ((prisma as any).recommendationVote?.create) {
-          await (prisma as any).recommendationVote.create({
-            data: {
-              recommendationId: recId,
-              userId: userId,
-            },
-          });
-        } else {
-          const voteId = `vote-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-          await prisma.$executeRaw`INSERT INTO "RecommendationVote" ("id", "recommendationId", "userId", "createdAt") VALUES (${voteId}, ${recId}, ${userId}, NOW())`;
-        }
+        await prisma.recommendationVote.create({
+          data: {
+            recommendationId: recId,
+            userId: userId,
+          },
+        });
       } catch (e) {
-        console.warn('Failed to insert vote record:', e);
+        const voteId = `vote-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        await prisma.$executeRaw`INSERT INTO "RecommendationVote" ("id", "recommendationId", "userId", "createdAt") VALUES (${voteId}, ${recId}, ${userId}, NOW())`;
       }
 
       const updated = await prisma.recommendation.update({
         where: { id: recId },
         data: { upvotes: { increment: 1 } },
-        include: { author: true },
+        include: { author: true, assignedTo: true, team: true, votes: true },
       });
-      const [populated] = await RecommendationService.populateRelations([updated]);
-      return { source: 'prisma_database', recommendation: populated, hasVoted: true };
+      return { source: 'prisma_database', recommendation: updated, hasVoted: true };
     }
   }
 

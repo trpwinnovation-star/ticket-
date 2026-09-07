@@ -219,14 +219,36 @@ export default function RecommendationsPage() {
   };
 
   const handleUpvote = async (recId: string) => {
+    if (!currentUser?.id) return;
+
+    // Optimistic UI update for instant feedback
+    setRecommendations((prevRecs) =>
+      prevRecs.map((rec) => {
+        if (rec.id !== recId) return rec;
+        const currentVotes = Array.isArray(rec.votes) ? rec.votes : [];
+        const hasVoted = currentVotes.some((v: any) => v.userId === currentUser.id);
+        const newVotes = hasVoted
+          ? currentVotes.filter((v: any) => v.userId !== currentUser.id)
+          : [...currentVotes, { userId: currentUser.id, recommendationId: recId }];
+        const newUpvotes = hasVoted ? Math.max(0, rec.upvotes - 1) : rec.upvotes + 1;
+        return { ...rec, upvotes: newUpvotes, votes: newVotes };
+      })
+    );
+
     try {
-      await fetch(`/api/v1/recommendations/${recId}/upvote`, {
+      const res = await fetch(`/api/v1/recommendations/${recId}/upvote`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
-      fetchRecommendations();
+      const data = await res.json();
+      if (data.recommendation) {
+        setRecommendations((prevRecs) =>
+          prevRecs.map((r) => (r.id === recId ? data.recommendation : r))
+        );
+      }
     } catch (err) {
       console.error('Failed to upvote recommendation:', err);
+      fetchRecommendations();
     }
   };
 

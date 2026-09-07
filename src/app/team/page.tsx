@@ -28,6 +28,18 @@ export default function TeamPage() {
   const [selectedTeamForAdd, setSelectedTeamForAdd] = useState<any | null>(null);
   const [selectedUserIdToAdd, setSelectedUserIdToAdd] = useState<string>('');
   const [addingMember, setAddingMember] = useState<boolean>(false);
+  const [seenTicketIds, setSeenTicketIds] = useState<Set<string>>(new Set());
+  const [workDeskTab, setWorkDeskTab] = useState<'ACTIVE' | 'PENDING_TESTING'>('ACTIVE');
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      try {
+        const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
+        const list = JSON.parse(raw);
+        setSeenTicketIds(new Set(list));
+      } catch (e) {}
+    }
+  }, [currentUser]);
 
   const fetchData = async () => {
     if (!isAuthenticated) return;
@@ -169,11 +181,19 @@ export default function TeamPage() {
   }
 
   const isITSpecialist = currentUser?.role === 'IT_SOFTWARE';
-  const assignedTickets = tickets.filter(
+  const activeAssignedTickets = tickets.filter(
     (t) =>
       (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
-      !['COMPLETED', 'CLOSED', 'RESOLVED'].includes(t.status)
+      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED'].includes(t.status)
   );
+
+  const pendingTestingTickets = tickets.filter(
+    (t) =>
+      (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
+      t.status === 'PENDING_TESTING'
+  );
+
+  const assignedTickets = workDeskTab === 'ACTIVE' ? activeAssignedTickets : pendingTestingTickets;
 
   return (
     <div className="space-y-8">
@@ -219,14 +239,34 @@ export default function TeamPage() {
           {/* Left: My Assigned Tickets (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-blue-600" />
                   <span>My Assigned Technical Work Desk</span>
                 </h2>
-                <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {assignedTickets.length} Active
-                </span>
+
+                <div className="flex items-center bg-slate-200/70 p-1 rounded-xl border border-slate-300/60">
+                  <button
+                    onClick={() => setWorkDeskTab('ACTIVE')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      workDeskTab === 'ACTIVE'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    Active Work ({activeAssignedTickets.length})
+                  </button>
+                  <button
+                    onClick={() => setWorkDeskTab('PENDING_TESTING')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      workDeskTab === 'PENDING_TESTING'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    In Testing ({pendingTestingTickets.length})
+                  </button>
+                </div>
               </div>
 
               <div className="divide-y divide-slate-100">
@@ -237,33 +277,55 @@ export default function TeamPage() {
                 ) : assignedTickets.length === 0 ? (
                   <div className="p-8 text-center space-y-2">
                     <TicketIcon className="w-8 h-8 text-slate-300 mx-auto" />
-                    <p className="text-xs font-bold text-slate-700">No tickets assigned to your account</p>
+                    <p className="text-xs font-bold text-slate-700">
+                      {workDeskTab === 'ACTIVE'
+                        ? 'No active tickets currently assigned to you'
+                        : 'No tickets currently pending testing'}
+                    </p>
                     <p className="text-[11px] text-slate-400">
-                      When a Manager approves and assigns a ticket to you, it will appear here.
+                      {workDeskTab === 'ACTIVE'
+                        ? 'When a Manager approves and assigns a ticket to you, it will appear here.'
+                        : 'Tickets marked as Pending Testing will appear here.'}
                     </p>
                   </div>
                 ) : (
-                  assignedTickets.map((t) => (
-                    <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
-                            {t.status.replace('_', ' ')}
-                          </span>
+                  assignedTickets.map((t) => {
+                    const isSeen = seenTicketIds.has(t.id);
+                    return (
+                      <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
+                            {!isSeen ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse">
+                                NEW UNREAD
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
+                                VIEWED
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                              {t.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
+                          <p className="text-xs text-slate-500">{t.websiteName} • {t.module}</p>
                         </div>
-                        <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
-                        <p className="text-xs text-slate-500">{t.websiteName} • {t.module}</p>
-                      </div>
 
-                      <Link
-                        href={`/tickets/${t.id}`}
-                        className="px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shrink-0"
-                      >
-                        Open & Log Work
-                      </Link>
-                    </div>
-                  ))
+                        <Link
+                          href={`/tickets/${t.id}`}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                            !isSeen
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {!isSeen ? 'Open New Ticket' : 'Open & Log Work'}
+                        </Link>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

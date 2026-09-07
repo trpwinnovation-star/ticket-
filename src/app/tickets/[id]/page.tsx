@@ -20,6 +20,7 @@ import {
   PlusCircle,
   Users,
   Building,
+  Pencil,
 } from 'lucide-react';
 
 export default function TicketDetailPage() {
@@ -51,6 +52,68 @@ export default function TicketDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [itUsers, setItUsers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [configWebsites, setConfigWebsites] = useState<any[]>([]);
+  const [configModules, setConfigModules] = useState<any[]>([]);
+
+  // Edit Ticket Form State
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editDescription, setEditDescription] = useState<string>('');
+  const [editCategory, setEditCategory] = useState<string>('Software Bug');
+  const [editWebsiteName, setEditWebsiteName] = useState<string>('');
+  const [editModule, setEditModule] = useState<string>('');
+  const [editPriority, setEditPriority] = useState<string>('MEDIUM');
+  const [editLoading, setEditLoading] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string>('');
+
+  const openEditModal = () => {
+    if (!ticket) return;
+    setEditTitle(ticket.title || '');
+    setEditDescription(ticket.description || '');
+    setEditCategory(ticket.category || 'Software Bug');
+    setEditWebsiteName(ticket.websiteName || (configWebsites[0]?.name ?? ''));
+    setEditModule(ticket.module || (configModules[0]?.name ?? ''));
+    setEditPriority(ticket.priority || 'MEDIUM');
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editDescription.trim()) {
+      setEditError('Title and description are required fields.');
+      return;
+    }
+    setEditLoading(true);
+    setEditError('');
+
+    try {
+      const res = await fetch(`/api/v1/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          category: editCategory,
+          websiteName: editWebsiteName,
+          module: editModule,
+          priority: editPriority,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to update ticket details.');
+      }
+
+      setShowEditModal(false);
+      fetchTicket();
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update ticket.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const fetchTicket = async () => {
     setLoading(true);
@@ -66,6 +129,19 @@ export default function TicketDetailPage() {
           setTargetClosureDate(new Date(data.ticket.targetClosureDate).toISOString().split('T')[0]);
         } else {
           setTargetClosureDate('');
+        }
+
+        // Mark ticket as seen/viewed by current user in local tracking
+        if (currentUser?.id && ticketId) {
+          try {
+            const key = `seen_tickets_${currentUser.id}`;
+            const raw = localStorage.getItem(key) || '[]';
+            const list = JSON.parse(raw);
+            if (!list.includes(ticketId)) {
+              list.push(ticketId);
+              localStorage.setItem(key, JSON.stringify(list));
+            }
+          } catch (e) {}
         }
       }
     } catch (err) {
@@ -83,6 +159,14 @@ export default function TicketDetailPage() {
         if (data.teams) setTeams(data.teams);
       })
       .catch((e) => console.error('Failed to fetch teams:', e));
+
+    fetch('/api/v1/config/options', { headers: getAuthHeaders() })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.websites) setConfigWebsites(data.websites);
+        if (data.modules) setConfigModules(data.modules);
+      })
+      .catch((e) => console.error('Failed to load target options:', e));
 
     if ((currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN')) {
       fetch('/api/v1/admin/users', { headers: getAuthHeaders() })
@@ -307,6 +391,12 @@ export default function TicketDetailPage() {
     );
   }
 
+  const canEditTicket =
+    ticket &&
+    ((currentUser?.id === ticket.createdById && !['RESOLVED', 'COMPLETED', 'CLOSED'].includes(ticket.status)) ||
+      currentRole === 'MANAGER' ||
+      currentRole === 'SUPER_ADMIN');
+
   return (
     <div className="space-y-6">
       {/* Top Back & Header */}
@@ -412,19 +502,31 @@ export default function TicketDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Header Info */}
           <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm font-black text-[#c16d18]">{ticket.ticketNumber}</span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
-                {ticket.category}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
-                {ticket.status.replace('_', ' ')}
-              </span>
-              {ticket.team && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 flex items-center gap-1">
-                  <Building className="w-3 h-3 text-blue-600" />
-                  <span>Assigned Team: {ticket.team.name}</span>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-sm font-black text-[#c16d18]">{ticket.ticketNumber}</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                  {ticket.category}
                 </span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
+                  {ticket.status.replace('_', ' ')}
+                </span>
+                {ticket.team && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 flex items-center gap-1">
+                    <Building className="w-3 h-3 text-blue-600" />
+                    <span>Assigned Team: {ticket.team.name}</span>
+                  </span>
+                )}
+              </div>
+
+              {canEditTicket && (
+                <button
+                  onClick={openEditModal}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Edit Ticket Details</span>
+                </button>
               )}
             </div>
 
@@ -821,6 +923,155 @@ export default function TicketDetailPage() {
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md"
               >
                 Submit Work Log
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Ticket Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form onSubmit={handleSaveEdit} className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-[#c16d18]" />
+                <span>Edit Ticket Details</span>
+              </h3>
+              <span className="font-mono text-xs font-bold text-[#c16d18]">{ticket.ticketNumber}</span>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
+                {editError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Ticket Title *</label>
+              <input
+                type="text"
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 font-semibold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Detailed Description *</label>
+              <textarea
+                required
+                rows={4}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 text-slate-900"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-semibold text-slate-900"
+                >
+                  <option value="Software Bug">Software Bug</option>
+                  <option value="IT Request">IT Request</option>
+                  <option value="Infrastructure">Infrastructure</option>
+                  <option value="Feature Access">Feature Access</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Urgency / Priority</label>
+                <select
+                  value={editPriority}
+                  onChange={(e) => setEditPriority(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-semibold text-slate-900"
+                >
+                  <option value="LOW">Low Priority</option>
+                  <option value="MEDIUM">Medium Priority</option>
+                  <option value="HIGH">High Priority</option>
+                  <option value="URGENT">Urgent Priority</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Target Website / Portal Name</label>
+                {configWebsites.length > 0 ? (
+                  <select
+                    value={editWebsiteName}
+                    onChange={(e) => setEditWebsiteName(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-bold text-slate-900"
+                  >
+                    {editWebsiteName && !configWebsites.some((w) => w.name === editWebsiteName) && (
+                      <option value={editWebsiteName}>{editWebsiteName}</option>
+                    )}
+                    {configWebsites.map((w: any) => (
+                      <option key={w.id} value={w.name}>
+                        {w.name} {w.url ? `(${w.url})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={editWebsiteName}
+                    onChange={(e) => setEditWebsiteName(e.target.value)}
+                    placeholder="e.g. Client Portal, CRM Web App"
+                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 font-semibold text-slate-900"
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Target Module / Page</label>
+                {configModules.length > 0 ? (
+                  <select
+                    value={editModule}
+                    onChange={(e) => setEditModule(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-bold text-slate-900"
+                  >
+                    {editModule && !configModules.some((m) => m.name === editModule) && (
+                      <option value={editModule}>{editModule}</option>
+                    )}
+                    {configModules.map((m: any) => (
+                      <option key={m.id} value={m.name}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={editModule}
+                    onChange={(e) => setEditModule(e.target.value)}
+                    placeholder="e.g. Billing, Auth, Reports"
+                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 font-semibold text-slate-900"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                disabled={editLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={editLoading}
+                className="px-4 py-2 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {editLoading ? 'Saving...' : 'Save Ticket Changes'}
               </button>
             </div>
           </form>
