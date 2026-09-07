@@ -263,7 +263,7 @@ export default function DashboardPage() {
                   ? 'Manage assigned technical tickets, log work hours, update bug statuses, and record internal developer notes.'
                   : currentRole === 'MANAGER'
                     ? 'Review incoming client tickets, approve or reject submissions, assign to IT teams, and ensure SLA compliance.'
-                    : 'Super Admin Executive Console: Monitor overall platform health, track logged work hours, manage subcontractor teams, and audit ticket status.'}
+                    : 'Monitor overall platform health, track logged work hours, manage teams, and audit ticket status.'}
             </p>
           </div>
 
@@ -379,7 +379,8 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">
-                  <p className="text-[10px] uppercase font-bold text-purple-200">Subcontractor Teams</p>
+                  <p className="text-[10px] uppercase font-bold text-purple-200">
+                    Total Teams</p>
                   <p className="text-2xl font-black text-white">{metrics.totalTeams || 2}</p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">

@@ -51,7 +51,6 @@ export default function RecommendationsPage() {
       }
       if (data.modules && data.modules.length > 0) {
         setModules(data.modules);
-        setModuleName(data.modules[0].name);
       }
     } catch (e) {
       console.error('Failed to fetch config options:', e);
@@ -172,11 +171,24 @@ export default function RecommendationsPage() {
     { id: 'w-3', name: 'Platform Global Hub', url: 'hub.platformglobal.org' }
   ];
 
-  const displayModules = modules.length > 0 ? modules : [
+  const selectedRecWebsiteObj = displayWebsites.find((w: any) => w.name === websiteName);
+  const rawModules = modules.length > 0 ? modules : [
     { id: 'm-1', name: 'Billing & Invoicing' },
     { id: 'm-2', name: 'Auth & SSO' },
     { id: 'm-3', name: 'Infrastructure & Server Operations' }
   ];
+
+  const displayModules = selectedRecWebsiteObj
+    ? rawModules.filter((m: any) => !m.websiteId || m.websiteId === selectedRecWebsiteObj.id)
+    : rawModules;
+
+  useEffect(() => {
+    if (displayModules.length > 0) {
+      if (!displayModules.some((m: any) => m.name === moduleName)) {
+        setModuleName(displayModules[0].name);
+      }
+    }
+  }, [websiteName, websites, modules]);
 
   const handleSubmitRecommendation = async (e: React.FormEvent) => {
     e.preventDefault();

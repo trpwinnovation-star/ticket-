@@ -66,6 +66,11 @@ export default function TicketDetailPage() {
   const [editLoading, setEditLoading] = useState<boolean>(false);
   const [editError, setEditError] = useState<string>('');
 
+  const selectedEditWebsiteObj = configWebsites.find((w: any) => w.name === editWebsiteName);
+  const filteredEditModules = selectedEditWebsiteObj
+    ? configModules.filter((m: any) => !m.websiteId || m.websiteId === selectedEditWebsiteObj.id)
+    : configModules;
+
   const openEditModal = () => {
     if (!ticket) return;
     setEditTitle(ticket.title || '');
@@ -1030,16 +1035,16 @@ export default function TicketDetailPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Target Module / Page</label>
-                {configModules.length > 0 ? (
+                {filteredEditModules.length > 0 ? (
                   <select
                     value={editModule}
                     onChange={(e) => setEditModule(e.target.value)}
                     className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-bold text-slate-900"
                   >
-                    {editModule && !configModules.some((m) => m.name === editModule) && (
+                    {editModule && !filteredEditModules.some((m) => m.name === editModule) && (
                       <option value={editModule}>{editModule}</option>
                     )}
-                    {configModules.map((m: any) => (
+                    {filteredEditModules.map((m: any) => (
                       <option key={m.id} value={m.name}>
                         {m.name}
                       </option>

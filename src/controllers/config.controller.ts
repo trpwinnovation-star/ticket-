@@ -45,8 +45,8 @@ export class ConfigController {
    */
   static addModule(req: Request, res: Response, next: NextFunction) {
     try {
-      const { name, category } = req.body;
-      const moduleItem = ConfigService.addModule(name, category);
+      const { name, category, websiteId } = req.body;
+      const moduleItem = ConfigService.addModule(name, category, websiteId);
       res.status(201).json({ success: true, message: 'Target module added successfully.', module: moduleItem });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message || 'Failed to add target module.' });

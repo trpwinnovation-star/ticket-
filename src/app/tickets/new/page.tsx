@@ -36,11 +36,23 @@ export default function NewTicketPage() {
         }
         if (data.modules && data.modules.length > 0) {
           setModules(data.modules);
-          setModule(data.modules[0].name);
         }
       })
       .catch((err) => console.error('Failed to load target options:', err));
   }, []);
+
+  const selectedWebsiteObj = websites.find((w: any) => w.name === websiteName);
+  const filteredModules = selectedWebsiteObj
+    ? modules.filter((m: any) => !m.websiteId || m.websiteId === selectedWebsiteObj.id)
+    : modules;
+
+  useEffect(() => {
+    if (filteredModules.length > 0) {
+      if (!filteredModules.some((m: any) => m.name === module)) {
+        setModule(filteredModules[0].name);
+      }
+    }
+  }, [websiteName, websites, modules]);
 
   // Attachment state
   const [attachments, setAttachments] = useState<
@@ -195,7 +207,7 @@ export default function NewTicketPage() {
                 onChange={(e) => setModule(e.target.value)}
                 className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#c16d18] focus:bg-white focus:outline-none font-bold text-slate-800"
               >
-                {modules.map((m: any) => (
+                {filteredModules.map((m: any) => (
                   <option key={m.id} value={m.name}>
                     {m.name}
                   </option>

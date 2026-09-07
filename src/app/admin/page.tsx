@@ -37,6 +37,8 @@ export default function SuperAdminDashboard() {
   const [newWebUrl, setNewWebUrl] = useState('');
   const [newModName, setNewModName] = useState('');
   const [newModCategory, setNewModCategory] = useState('');
+  const [newModWebsiteId, setNewModWebsiteId] = useState('');
+  const [moduleFilterWebsiteId, setModuleFilterWebsiteId] = useState('ALL');
 
   // Subcontractor Team Form State
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -50,7 +52,12 @@ export default function SuperAdminDashboard() {
     try {
       const res = await fetch('/api/v1/config/options', { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.websites) setTargetWebsites(data.websites);
+      if (data.websites) {
+        setTargetWebsites(data.websites);
+        if (data.websites.length > 0) {
+          setNewModWebsiteId((prev) => prev || data.websites[0].id);
+        }
+      }
       if (data.modules) setTargetModules(data.modules);
     } catch (e) {
       console.error('Failed to fetch config options:', e);
@@ -241,7 +248,7 @@ export default function SuperAdminDashboard() {
       await fetch('/api/v1/config/modules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: newModName, category: newModCategory }),
+        body: JSON.stringify({ name: newModName, category: newModCategory, websiteId: newModWebsiteId }),
       });
       setNewModName('');
       setNewModCategory('');
@@ -335,15 +342,14 @@ export default function SuperAdminDashboard() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="bg-white/20 text-white border border-white/30 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 backdrop-blur-xs">
-              <Crown className="w-3.5 h-3.5" /> Level 4 Super Admin Control Panel
+              <Crown className="w-3.5 h-3.5" /> Super Admin Control Panel
             </span>
-            <span className="text-slate-300 text-xs font-medium">Platform Audit & Subcontractor Governance</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Platform Analytics & Work Hours Audit
+            Platform Dashboard & Analytics
           </h1>
           <p className="text-slate-200 text-xs sm:text-sm max-w-2xl">
-            Monitor real-time system metrics, review logged subcontractor work hours, manage engineering teams, and ensure platform SLA compliance.
+            Monitor real-time system metrics, review logged work hours, manage teams, and ensure platform optimization.
           </p>
         </div>
 
@@ -606,7 +612,7 @@ export default function SuperAdminDashboard() {
             <div>
               <h2 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Globe className="w-4 h-4 text-[#c16d18]" />
-                <span>Predefined Projects & Portals</span>
+                <span>Projects & Portals</span>
               </h2>
               <p className="text-xs text-slate-500">Configured by Admin/Manager for Raise Ticket & Suggestion dropdowns</p>
             </div>
@@ -667,7 +673,7 @@ export default function SuperAdminDashboard() {
             <div>
               <h2 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Layers className="w-4 h-4 text-blue-600" />
-                <span>Predefined Target Modules & Features</span>
+                <span>Predefined Modules & Features</span>
               </h2>
               <p className="text-xs text-slate-500">Configured by Admin/Manager for Raise Ticket & Suggestion dropdowns</p>
             </div>
@@ -677,38 +683,82 @@ export default function SuperAdminDashboard() {
           </div>
 
           {/* Add Module Form */}
-          <form onSubmit={handleAddTargetModule} className="flex gap-2">
-            <input
-              type="text"
-              required
-              value={newModName}
-              onChange={(e) => setNewModName(e.target.value)}
-              placeholder="Module Name (e.g. Auth & SSO)"
-              className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs transition-all shrink-0"
-            >
-              + Add
-            </button>
+          <form onSubmit={handleAddTargetModule} className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Select Project / Portal</label>
+              <select
+                value={newModWebsiteId}
+                onChange={(e) => setNewModWebsiteId(e.target.value)}
+                className="w-full px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-slate-50 text-slate-800 focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              >
+                {targetWebsites.map((w: any) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                required
+                value={newModName}
+                onChange={(e) => setNewModName(e.target.value)}
+                placeholder="Module Name (e.g. Panel Telemetry)"
+                className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs transition-all shrink-0"
+              >
+                + Add Module
+              </button>
+            </div>
           </form>
 
-          {/* Modules List */}
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {targetModules.map((m: any) => (
-              <div key={m.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-                <p className="font-extrabold text-slate-900 truncate">{m.name}</p>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTargetModule(m.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors shrink-0 ml-2"
-                  title="Delete Module"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+          {/* Module Filter & List */}
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Project Filter:</span>
+              <select
+                value={moduleFilterWebsiteId}
+                onChange={(e) => setModuleFilterWebsiteId(e.target.value)}
+                className="text-xs px-2.5 py-1 border border-slate-200 rounded-lg bg-slate-50 font-bold text-slate-800"
+              >
+                <option value="ALL">All Projects ({targetModules.length})</option>
+                {targetWebsites.map((w: any) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {targetModules
+                .filter((m: any) => moduleFilterWebsiteId === 'ALL' || m.websiteId === moduleFilterWebsiteId)
+                .map((m: any) => {
+                  const web = targetWebsites.find((w: any) => w.id === m.websiteId);
+                  return (
+                    <div key={m.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-extrabold text-slate-900 truncate">{m.name}</p>
+                        <p className="text-[10px] text-blue-600 font-semibold truncate">
+                          {web ? web.name : 'General Project'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTargetModule(m.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors shrink-0 ml-2"
+                        title="Delete Module"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         </div>
       </div>

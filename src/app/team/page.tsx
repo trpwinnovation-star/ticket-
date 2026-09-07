@@ -37,7 +37,7 @@ export default function TeamPage() {
         const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
         const list = JSON.parse(raw);
         setSeenTicketIds(new Set(list));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [currentUser]);
 
@@ -203,10 +203,7 @@ export default function TeamPage() {
           <div className="flex items-center gap-2">
             <span className="bg-white/20 text-white border border-white/30 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 backdrop-blur-xs">
               <Users className="w-3.5 h-3.5" />
-              {isITSpecialist ? 'Level 2 IT Team Work Desk' : 'Teams Management'}
-            </span>
-            <span className="text-slate-300 text-xs font-medium">
-              {isITSpecialist ? 'DevOps & Software Engineering Operations' : 'Technical Staff Allocation & Roster'}
+              {isITSpecialist ? 'IT Team Work Desk' : 'Teams Management'}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
@@ -248,21 +245,19 @@ export default function TeamPage() {
                 <div className="flex items-center bg-slate-200/70 p-1 rounded-xl border border-slate-300/60">
                   <button
                     onClick={() => setWorkDeskTab('ACTIVE')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      workDeskTab === 'ACTIVE'
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'ACTIVE'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-slate-700 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Active Work ({activeAssignedTickets.length})
                   </button>
                   <button
                     onClick={() => setWorkDeskTab('PENDING_TESTING')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      workDeskTab === 'PENDING_TESTING'
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'PENDING_TESTING'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-slate-700 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     In Testing ({pendingTestingTickets.length})
                   </button>
@@ -315,11 +310,10 @@ export default function TeamPage() {
 
                         <Link
                           href={`/tickets/${t.id}`}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                            !isSeen
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${!isSeen
                               ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
                               : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                            }`}
                         >
                           {!isSeen ? 'Open New Ticket' : 'Open & Log Work'}
                         </Link>

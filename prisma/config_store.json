@@ -28,45 +28,45 @@
   ],
   "modules": [
     {
-      "id": "mod-1",
-      "name": "Billing & Invoicing",
-      "category": "Core Finance",
+      "id": "mod-301",
+      "name": "WebRTC Video Conferencing Engine",
+      "websiteId": "web-1788261535928",
+      "category": "Streaming",
       "createdAt": "2026-09-01T11:16:46.747Z"
     },
     {
-      "id": "mod-2",
-      "name": "Authentication & SSO",
-      "category": "Security",
+      "id": "mod-302",
+      "name": "Meeting Room Scheduler & Live Chat",
+      "websiteId": "web-1788261535928",
+      "category": "Collaboration",
       "createdAt": "2026-09-01T11:16:46.747Z"
     },
     {
-      "id": "mod-3",
-      "name": "User Dashboard & Analytics",
-      "category": "Frontend UI",
+      "id": "mod-401",
+      "name": "Billing, Metering & Utility Rates Engine",
+      "websiteId": "web-1788261522362",
+      "category": "Billing",
       "createdAt": "2026-09-01T11:16:46.747Z"
     },
     {
-      "id": "mod-4",
-      "name": "Payment Gateway Integration",
+      "id": "mod-402",
+      "name": "Customer Payment Gateway & Invoicing",
+      "websiteId": "web-1788261522362",
       "category": "Payments",
       "createdAt": "2026-09-01T11:16:46.747Z"
     },
     {
-      "id": "mod-5",
-      "name": "Reports & Data Export",
-      "category": "Analytics",
+      "id": "mod-501",
+      "name": "Job Posting Portal & Application Tracker",
+      "websiteId": "web-1788261513136",
+      "category": "Recruitment",
       "createdAt": "2026-09-01T11:16:46.747Z"
     },
     {
-      "id": "mod-6",
-      "name": "API & Subcontractor Integrations",
-      "category": "Backend Systems",
-      "createdAt": "2026-09-01T11:16:46.747Z"
-    },
-    {
-      "id": "mod-7",
-      "name": "Infrastructure & Server Operations",
-      "category": "DevOps",
+      "id": "mod-502",
+      "name": "Candidate Resume Parser & Interview Scheduler",
+      "websiteId": "web-1788261513136",
+      "category": "HR Tech",
       "createdAt": "2026-09-01T11:16:46.747Z"
     }
   ]

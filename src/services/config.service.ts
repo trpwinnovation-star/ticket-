@@ -11,6 +11,7 @@ export interface TargetWebsite {
 export interface TargetModule {
   id: string;
   name: string;
+  websiteId?: string; // ID of the Project / Portal this module belongs to
   category?: string;
   createdAt: string;
 }
@@ -23,13 +24,25 @@ const DEFAULT_WEBSITES: TargetWebsite[] = [
 ];
 
 const DEFAULT_MODULES: TargetModule[] = [
-  { id: 'mod-1', name: 'Billing & Invoicing', category: 'Core Finance', createdAt: new Date().toISOString() },
-  { id: 'mod-2', name: 'Authentication & SSO', category: 'Security', createdAt: new Date().toISOString() },
-  { id: 'mod-3', name: 'User Dashboard & Analytics', category: 'Frontend UI', createdAt: new Date().toISOString() },
-  { id: 'mod-4', name: 'Payment Gateway Integration', category: 'Payments', createdAt: new Date().toISOString() },
-  { id: 'mod-5', name: 'Reports & Data Export', category: 'Analytics', createdAt: new Date().toISOString() },
-  { id: 'mod-6', name: 'API & Subcontractor Integrations', category: 'Backend Systems', createdAt: new Date().toISOString() },
-  { id: 'mod-7', name: 'Infrastructure & Server Operations', category: 'DevOps', createdAt: new Date().toISOString() },
+  // Acme Retail Portal (web-1)
+  { id: 'mod-1', name: 'User Dashboard & Shopping Experience', websiteId: 'web-1', category: 'Frontend UI', createdAt: new Date().toISOString() },
+  { id: 'mod-2', name: 'Product Catalog & Search Filters', websiteId: 'web-1', category: 'Catalog', createdAt: new Date().toISOString() },
+  { id: 'mod-3', name: 'Cart & Flash Checkout Engine', websiteId: 'web-1', category: 'E-Commerce', createdAt: new Date().toISOString() },
+
+  // TechCorp Enterprise ERP (web-2)
+  { id: 'mod-4', name: 'HR & Staff Payroll System', websiteId: 'web-2', category: 'Human Resources', createdAt: new Date().toISOString() },
+  { id: 'mod-5', name: 'Inventory & Warehouse Tracker', websiteId: 'web-2', category: 'Logistics', createdAt: new Date().toISOString() },
+  { id: 'mod-6', name: 'Authentication & Corporate SSO', websiteId: 'web-2', category: 'Security', createdAt: new Date().toISOString() },
+
+  // CloudOps Infrastructure Hub (web-3)
+  { id: 'mod-7', name: 'Infrastructure & Server Operations', websiteId: 'web-3', category: 'DevOps', createdAt: new Date().toISOString() },
+  { id: 'mod-8', name: 'API Gateway & Microservices Hub', websiteId: 'web-3', category: 'Backend Systems', createdAt: new Date().toISOString() },
+  { id: 'mod-9', name: 'Kubernetes Monitoring & Log Aggregation', websiteId: 'web-3', category: 'Observability', createdAt: new Date().toISOString() },
+
+  // FinTech Global Billing System (web-4)
+  { id: 'mod-10', name: 'Billing, Invoicing & VAT Calculations', websiteId: 'web-4', category: 'Core Finance', createdAt: new Date().toISOString() },
+  { id: 'mod-11', name: 'Stripe & PayPal Payment Gateway Integration', websiteId: 'web-4', category: 'Payments', createdAt: new Date().toISOString() },
+  { id: 'mod-12', name: 'Subscriptions & Recurring Billing Engine', websiteId: 'web-4', category: 'Subscriptions', createdAt: new Date().toISOString() },
 ];
 
 const DATA_FILE = path.join(process.cwd(), 'prisma', 'config_store.json');
@@ -39,10 +52,20 @@ function loadConfigData(): { websites: TargetWebsite[]; modules: TargetModule[] 
     if (fs.existsSync(DATA_FILE)) {
       const content = fs.readFileSync(DATA_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      return {
-        websites: Array.isArray(parsed.websites) ? parsed.websites : DEFAULT_WEBSITES,
-        modules: Array.isArray(parsed.modules) ? parsed.modules : DEFAULT_MODULES,
-      };
+      const websites = Array.isArray(parsed.websites) && parsed.websites.length > 0 ? parsed.websites : DEFAULT_WEBSITES;
+      const rawModules = Array.isArray(parsed.modules) && parsed.modules.length > 0 ? parsed.modules : DEFAULT_MODULES;
+
+      // Migrate legacy modules that don't have websiteId
+      const modules = rawModules.map((m: any, index: number) => {
+        if (!m.websiteId) {
+          // Assign to website based on mod index or default to first website
+          const targetWeb = websites[index % websites.length] || websites[0];
+          return { ...m, websiteId: targetWeb?.id };
+        }
+        return m;
+      });
+
+      return { websites, modules };
     }
   } catch (err) {
     console.error('Failed to load config_store.json:', err);
@@ -95,21 +118,28 @@ export class ConfigService {
   static deleteWebsite(id: string) {
     const { websites, modules } = loadConfigData();
     const filteredWebsites = websites.filter((w) => w.id !== id);
-    saveConfigData(filteredWebsites, modules);
+    // Remove modules belonging to deleted website
+    const filteredModules = modules.filter((m) => m.websiteId !== id);
+    saveConfigData(filteredWebsites, filteredModules);
     return { success: true };
   }
 
   /**
-   * Add a new target module (Admin/Manager only)
+   * Add a new target module for a specific project/website (Admin/Manager only)
    */
-  static addModule(name: string, category?: string) {
+  static addModule(name: string, category?: string, websiteId?: string) {
     if (!name || !name.trim()) {
       throw new Error('Target module name is required.');
     }
     const { websites, modules } = loadConfigData();
+
+    // Default to first website if not specified
+    const targetWebsiteId = websiteId || (websites[0]?.id ?? 'web-1');
+
     const newMod: TargetModule = {
       id: `mod-${Date.now()}`,
       name: name.trim(),
+      websiteId: targetWebsiteId,
       category: category ? category.trim() : 'General',
       createdAt: new Date().toISOString(),
     };
