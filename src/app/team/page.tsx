@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { teamApi } from '@/services/api/team.api';
+import { ticketApi } from '@/services/api/ticket.api';
 import {
   Users,
   Building,
@@ -45,16 +47,11 @@ export default function TeamPage() {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
-      const [resTeams, resTickets, resUsers] = await Promise.all([
-        fetch('/api/v1/teams', { headers }),
-        fetch('/api/v1/tickets', { headers }),
-        fetch('/api/v1/admin/users', { headers }),
+      const [dataTeams, dataTickets, dataUsers] = await Promise.all([
+        teamApi.getTeams(),
+        ticketApi.getAll(),
+        teamApi.getUsers(),
       ]);
-
-      const dataTeams = await resTeams.json();
-      const dataTickets = await resTickets.json();
-      const dataUsers = await resUsers.json();
 
       if (dataTeams.teams) setTeams(dataTeams.teams);
       if (dataTickets.tickets) setTickets(dataTickets.tickets);
@@ -74,10 +71,10 @@ export default function TeamPage() {
     if (!selectedTeamForAdd || !selectedUserIdToAdd) return;
     setAddingMember(true);
     try {
-      await fetch(`/api/v1/teams/${selectedTeamForAdd.id}/members`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/teams/${selectedTeamForAdd.id}/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ userId: selectedUserIdToAdd }),
+        body: { userId: selectedUserIdToAdd },
       });
       setSelectedTeamForAdd(null);
       setSelectedUserIdToAdd('');
@@ -97,11 +94,7 @@ export default function TeamPage() {
     e.preventDefault();
     if (!newTeamName.trim()) return;
     try {
-      await fetch('/api/v1/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: newTeamName, description: newTeamDesc }),
-      });
+      await teamApi.createTeam({ name: newTeamName, description: newTeamDesc });
       setNewTeamName('');
       setNewTeamDesc('');
       setShowCreateTeamModal(false);
@@ -114,9 +107,9 @@ export default function TeamPage() {
   const handleDeleteTeam = async (teamId: string, teamName: string) => {
     if (!confirm(`Are you sure you want to delete the team "${teamName}"?`)) return;
     try {
-      await fetch(`/api/v1/teams/${teamId}`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/teams/${teamId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       fetchData();
     } catch (err) {
@@ -126,9 +119,9 @@ export default function TeamPage() {
 
   const handleRemoveMember = async (teamId: string, userId: string) => {
     try {
-      await fetch(`/api/v1/teams/${teamId}/members/${userId}`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/teams/${teamId}/members/${userId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       fetchData();
     } catch (err) {

@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { ticketApi } from '@/services/api/ticket.api';
+import { teamApi } from '@/services/api/team.api';
+import { configApi } from '@/services/api/config.api';
 import {
   Ticket as TicketIcon,
   Clock,
@@ -93,23 +96,14 @@ export default function TicketDetailPage() {
     setEditError('');
 
     try {
-      const res = await fetch(`/api/v1/tickets/${ticketId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          title: editTitle,
-          description: editDescription,
-          category: editCategory,
-          websiteName: editWebsiteName,
-          module: editModule,
-          priority: editPriority,
-        }),
+      await ticketApi.update(ticketId, {
+        title: editTitle,
+        description: editDescription,
+        category: editCategory,
+        websiteName: editWebsiteName,
+        module: editModule,
+        priority: editPriority,
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Failed to update ticket details.');
-      }
 
       setShowEditModal(false);
       fetchTicket();
@@ -123,8 +117,7 @@ export default function TicketDetailPage() {
   const fetchTicket = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/tickets/${ticketId}`, { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await ticketApi.getById(ticketId);
       if (data.ticket) {
         setTicket(data.ticket);
         if (data.ticket.assignedToId) setAssigneeId(data.ticket.assignedToId);
@@ -158,15 +151,13 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     fetchTicket();
-    fetch('/api/v1/teams', { headers: getAuthHeaders() })
-      .then((res) => res.json())
+    teamApi.getTeams()
       .then((data) => {
         if (data.teams) setTeams(data.teams);
       })
       .catch((e) => console.error('Failed to fetch teams:', e));
 
-    fetch('/api/v1/config/options', { headers: getAuthHeaders() })
-      .then((res) => res.json())
+    configApi.getOptions()
       .then((data) => {
         if (data.websites) setConfigWebsites(data.websites);
         if (data.modules) setConfigModules(data.modules);
@@ -174,8 +165,7 @@ export default function TicketDetailPage() {
       .catch((e) => console.error('Failed to load target options:', e));
 
     if ((currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN')) {
-      fetch('/api/v1/admin/users', { headers: getAuthHeaders() })
-        .then((res) => res.json())
+      teamApi.getUsers()
         .then((data) => {
           if (data.users) {
             const list = data.users.filter((u: any) => u.role === 'IT_SOFTWARE');
@@ -190,11 +180,7 @@ export default function TicketDetailPage() {
 
   const handleStatusUpdate = async (newStatus: string) => {
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      await ticketApi.updateStatus(ticketId, newStatus);
       fetchTicket();
     } catch (e) {
       console.error('Status update failed:', e);
@@ -217,13 +203,9 @@ export default function TicketDetailPage() {
     }
 
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          assignedToId: newAssigneeId || null,
-          teamId: targetTeamId || null,
-        }),
+      await ticketApi.assign(ticketId, {
+        assignedToId: newAssigneeId || null,
+        teamId: targetTeamId || null,
       });
       fetchTicket();
     } catch (e) {
@@ -247,13 +229,9 @@ export default function TicketDetailPage() {
     }
 
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          teamId: newTeamId || null,
-          assignedToId: targetAssigneeId || null,
-        }),
+      await ticketApi.assign(ticketId, {
+        teamId: newTeamId || null,
+        assignedToId: targetAssigneeId || null,
       });
       fetchTicket();
     } catch (e) {
@@ -264,14 +242,10 @@ export default function TicketDetailPage() {
   const handleClosureDateChange = async (newDate: string) => {
     setTargetClosureDate(newDate);
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          targetClosureDate: newDate || null,
-          assignedToId: ticket?.assignedToId || undefined,
-          teamId: ticket?.teamId || undefined,
-        }),
+      await ticketApi.assign(ticketId, {
+        targetClosureDate: newDate || null,
+        assignedToId: ticket?.assignedToId || undefined,
+        teamId: ticket?.teamId || undefined,
       });
       fetchTicket();
     } catch (e) {
@@ -282,11 +256,7 @@ export default function TicketDetailPage() {
   const handlePriorityChange = async (newPriority: string) => {
     setSelectedPriority(newPriority);
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/priority`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ priority: newPriority }),
-      });
+      await ticketApi.updatePriority(ticketId, newPriority);
       fetchTicket();
     } catch (e) {
       console.error('Priority update failed:', e);
@@ -295,15 +265,11 @@ export default function TicketDetailPage() {
 
   const handleApprove = async () => {
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          assignedToId: assigneeId || undefined,
-          teamId: selectedTeamId || undefined,
-          priority: selectedPriority || undefined,
-          targetClosureDate: targetClosureDate || undefined,
-        }),
+      await ticketApi.approve(ticketId, {
+        assignedToId: assigneeId || undefined,
+        teamId: selectedTeamId || undefined,
+        priority: selectedPriority || undefined,
+        targetClosureDate: targetClosureDate || undefined,
       });
       fetchTicket();
     } catch (e) {
@@ -314,11 +280,7 @@ export default function TicketDetailPage() {
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ rejectionReason: rejectReason }),
-      });
+      await ticketApi.reject(ticketId, rejectReason);
       setShowRejectModal(false);
       fetchTicket();
     } catch (e) {
@@ -331,16 +293,12 @@ export default function TicketDetailPage() {
     if (!workDesc.trim() || !hoursSpent) return;
 
     try {
-      await fetch('/api/v1/work-logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          ticketId,
-          userId: currentUser?.id,
-          hoursSpent: parseFloat(hoursSpent),
-          description: workDesc,
-          workDate,
-        }),
+      await teamApi.createWorkLog({
+        ticketId,
+        userId: currentUser?.id,
+        hoursSpent: parseFloat(hoursSpent),
+        description: workDesc,
+        workDate,
       });
       setWorkDesc('');
       setShowLogModal(false);
@@ -355,15 +313,7 @@ export default function TicketDetailPage() {
     if (!commentContent.trim()) return;
 
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          content: commentContent,
-          isInternal: isInternalComment,
-          authorId: currentUser?.id,
-        }),
-      });
+      await ticketApi.addComment(ticketId, commentContent, isInternalComment, currentUser?.id);
       setCommentContent('');
       setIsInternalComment(false);
       fetchTicket();

@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ticketApi } from '@/services/api/ticket.api';
+import { recommendationApi } from '@/services/api/recommendation.api';
+import { teamApi } from '@/services/api/team.api';
 import {
   Ticket as TicketIcon,
   Lightbulb,
@@ -57,34 +60,24 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
       const requests: Promise<any>[] = [
-        fetch('/api/v1/tickets', { headers }),
-        fetch('/api/v1/recommendations', { headers }),
-        fetch('/api/v1/admin/metrics', { headers }),
-        fetch('/api/v1/teams', { headers }),
+        ticketApi.getAll(),
+        recommendationApi.getAll(),
+        teamApi.getAdminMetrics(),
+        teamApi.getTeams(),
       ];
 
       if (currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') {
-        requests.push(fetch('/api/v1/admin/users', { headers }));
+        requests.push(teamApi.getUsers());
       }
 
-      const [resTickets, resRecs, resAdmin, resTeams, resUsers] = await Promise.all(requests);
-
-      const dataTickets = await resTickets.json();
-      const dataRecs = await resRecs.json();
-      const dataAdmin = await resAdmin.json();
-      const dataTeams = await resTeams.json();
+      const [dataTickets, dataRecs, dataAdmin, dataTeams, dataUsers] = await Promise.all(requests);
 
       if (dataTickets.tickets) setTickets(dataTickets.tickets);
       if (dataRecs.recommendations) setRecommendations(dataRecs.recommendations);
       if (dataAdmin.metrics) setMetrics(dataAdmin.metrics);
       if (dataTeams.teams) setTeams(dataTeams.teams);
-
-      if (resUsers) {
-        const dataUsers = await resUsers.json();
-        if (dataUsers.users) setUsers(dataUsers.users);
-      }
+      if (dataUsers && dataUsers.users) setUsers(dataUsers.users);
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
     } finally {
@@ -99,14 +92,10 @@ export default function DashboardPage() {
   const handleApprove = async () => {
     if (!selectedTicket) return;
     try {
-      await fetch(`/api/v1/tickets/${selectedTicket.id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          assignedToId: assigneeId || undefined,
-          teamId: selectedTeamId || undefined,
-          targetClosureDate: targetClosureDate || undefined,
-        }),
+      await ticketApi.approve(selectedTicket.id, {
+        assignedToId: assigneeId || undefined,
+        teamId: selectedTeamId || undefined,
+        targetClosureDate: targetClosureDate || undefined,
       });
       setShowApproveModal(false);
       setSelectedTicket(null);
@@ -122,11 +111,7 @@ export default function DashboardPage() {
   const handleReject = async () => {
     if (!selectedTicket || !rejectReason.trim()) return;
     try {
-      await fetch(`/api/v1/tickets/${selectedTicket.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ rejectionReason: rejectReason }),
-      });
+      await ticketApi.reject(selectedTicket.id, rejectReason);
       setShowRejectModal(false);
       setSelectedTicket(null);
       setRejectReason('');
@@ -153,11 +138,7 @@ export default function DashboardPage() {
     );
 
     try {
-      const res = await fetch(`/api/v1/recommendations/${recId}/upvote`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
+      const data = await recommendationApi.toggleUpvote(recId);
       if (data.recommendation) {
         setRecommendations((prevRecs) =>
           prevRecs.map((r) => (r.id === recId ? data.recommendation : r))

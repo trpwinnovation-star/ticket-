@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ticketApi } from '@/services/api/ticket.api';
 import {
   Ticket as TicketIcon,
   Search,
@@ -34,8 +35,7 @@ export default function TicketsPage() {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/tickets', { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await ticketApi.getAll();
       if (data.tickets) {
         setTickets(data.tickets);
       }
@@ -77,11 +77,7 @@ export default function TicketsPage() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await fetch(`/api/v1/tickets/${ticketId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({}),
-      });
+      await ticketApi.approve(ticketId, {});
       fetchTickets();
     } catch (err) {
       console.error('Quick approve failed:', err);

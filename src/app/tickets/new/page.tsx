@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { ticketApi } from '@/services/api/ticket.api';
+import { configApi } from '@/services/api/config.api';
 import {
   Ticket as TicketIcon,
   UploadCloud,
@@ -27,8 +29,7 @@ export default function NewTicketPage() {
   const [modules, setModules] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/v1/config/options', { headers: getAuthHeaders() })
-      .then((res) => res.json())
+    configApi.getOptions()
       .then((data) => {
         if (data.websites && data.websites.length > 0) {
           setWebsites(data.websites);
@@ -107,25 +108,16 @@ export default function NewTicketPage() {
     setError(null);
 
     try {
-      const res = await fetch('/api/v1/tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          title,
-          description,
-          websiteName,
-          module,
-          category,
-          priority,
-          createdById: currentUser?.id,
-          attachments,
-        }),
+      const data = await ticketApi.create({
+        title,
+        description,
+        websiteName,
+        module,
+        category,
+        priority,
+        createdById: currentUser?.id || '',
+        attachments,
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to submit ticket.');
-      }
 
       router.push(`/tickets/${data.ticket.id}`);
     } catch (err: any) {

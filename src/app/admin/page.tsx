@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { configApi } from '@/services/api/config.api';
+import { recommendationApi } from '@/services/api/recommendation.api';
+import { teamApi } from '@/services/api/team.api';
+import { ticketApi } from '@/services/api/ticket.api';
 import {
   Crown,
   Clock,
@@ -50,8 +54,7 @@ export default function SuperAdminDashboard() {
 
   const fetchConfigOptions = async () => {
     try {
-      const res = await fetch('/api/v1/config/options', { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await configApi.getOptions();
       if (data.websites) {
         setTargetWebsites(data.websites);
         if (data.websites.length > 0) {
@@ -66,8 +69,7 @@ export default function SuperAdminDashboard() {
 
   const fetchRecommendations = async () => {
     try {
-      const res = await fetch('/api/v1/recommendations', { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await recommendationApi.getAll();
       if (data.recommendations) setRecommendations(data.recommendations);
     } catch (e) {
       console.error('Failed to fetch recommendations in admin:', e);
@@ -78,18 +80,12 @@ export default function SuperAdminDashboard() {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
-      const [resAdmin, resTeams, resTickets, resUsers] = await Promise.all([
-        fetch('/api/v1/admin/metrics', { headers }),
-        fetch('/api/v1/teams', { headers }),
-        fetch('/api/v1/tickets', { headers }),
-        fetch('/api/v1/admin/users', { headers }),
+      const [dataAdmin, dataTeams, dataTickets, dataUsers] = await Promise.all([
+        teamApi.getAdminMetrics(timeFilter),
+        teamApi.getTeams(),
+        ticketApi.getAll(),
+        teamApi.getUsers(),
       ]);
-
-      const dataAdmin = await resAdmin.json();
-      const dataTeams = await resTeams.json();
-      const dataTickets = await resTickets.json();
-      const dataUsers = await resUsers.json();
 
       if (dataAdmin.metrics) setMetrics(dataAdmin.metrics);
       if (dataTeams.teams) setTeams(dataTeams.teams);
@@ -110,11 +106,7 @@ export default function SuperAdminDashboard() {
 
   const handleAssignTeamToRec = async (recId: string, teamId: string) => {
     try {
-      await fetch(`/api/v1/recommendations/${recId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId: teamId || null }),
-      });
+      await recommendationApi.assign(recId, { teamId: teamId || null });
       fetchRecommendations();
     } catch (e) {
       console.error('Assign team failed:', e);
@@ -128,11 +120,7 @@ export default function SuperAdminDashboard() {
         const found = users.find((u) => u.id === userId);
         if (found?.teamId) targetTeamId = found.teamId;
       }
-      await fetch(`/api/v1/recommendations/${recId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId }),
-      });
+      await recommendationApi.assign(recId, { assignedToId: userId || null, teamId: targetTeamId });
       fetchRecommendations();
     } catch (e) {
       console.error('Assign specialist failed:', e);
@@ -141,11 +129,7 @@ export default function SuperAdminDashboard() {
 
   const handleUpdateRecStatus = async (recId: string, status: string) => {
     try {
-      await fetch(`/api/v1/recommendations/${recId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ status }),
-      });
+      await recommendationApi.updateStatus(recId, status);
       fetchRecommendations();
     } catch (e) {
       console.error('Update recommendation status failed:', e);
@@ -154,13 +138,8 @@ export default function SuperAdminDashboard() {
 
   const handleConvertRecToTicket = async (recId: string, teamId?: string, assignedToId?: string) => {
     try {
-      const res = await fetch(`/api/v1/recommendations/${recId}/convert-to-ticket`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId, assignedToId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ticket) {
+      const data = await recommendationApi.convertToTicket(recId, teamId, assignedToId);
+      if (data.ticket) {
         alert(`Suggestion successfully converted to active ticket ${data.ticket.ticketNumber}!`);
         fetchRecommendations();
         fetchData();
@@ -175,10 +154,10 @@ export default function SuperAdminDashboard() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      await fetch(`/api/v1/admin/users/${userId}/role`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/admin/users/${userId}/role`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ role: newRole }),
+        body: { role: newRole },
       });
       fetchData();
     } catch (err) {
@@ -189,10 +168,10 @@ export default function SuperAdminDashboard() {
   const handleAddTeamToUser = async (userId: string, teamId: string) => {
     if (!teamId) return;
     try {
-      await fetch(`/api/v1/teams/${teamId}/members`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/teams/${teamId}/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ userId }),
+        body: { userId },
       });
       fetchData();
     } catch (err) {
@@ -202,9 +181,9 @@ export default function SuperAdminDashboard() {
 
   const handleRemoveTeamFromUser = async (userId: string, teamId: string) => {
     try {
-      await fetch(`/api/v1/teams/${teamId}/members/${userId}`, {
+      const { apiClient } = await import('@/lib/apiClient');
+      await apiClient(`/api/v1/teams/${teamId}/members/${userId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       fetchData();
     } catch (err) {
@@ -216,11 +195,7 @@ export default function SuperAdminDashboard() {
     e.preventDefault();
     if (!newWebName.trim()) return;
     try {
-      await fetch('/api/v1/config/websites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: newWebName, url: newWebUrl }),
-      });
+      await configApi.addWebsite(newWebName, newWebUrl);
       setNewWebName('');
       setNewWebUrl('');
       fetchConfigOptions();
@@ -231,10 +206,7 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteTargetWebsite = async (id: string) => {
     try {
-      await fetch(`/api/v1/config/websites/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
+      await configApi.deleteWebsite(id);
       fetchConfigOptions();
     } catch (e) {
       console.error('Failed to delete website:', e);
@@ -245,11 +217,7 @@ export default function SuperAdminDashboard() {
     e.preventDefault();
     if (!newModName.trim()) return;
     try {
-      await fetch('/api/v1/config/modules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: newModName, category: newModCategory, websiteId: newModWebsiteId }),
-      });
+      await configApi.addModule(newModName, newModCategory, newModWebsiteId);
       setNewModName('');
       setNewModCategory('');
       fetchConfigOptions();
@@ -260,10 +228,7 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteTargetModule = async (id: string) => {
     try {
-      await fetch(`/api/v1/config/modules/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
+      await configApi.deleteModule(id);
       fetchConfigOptions();
     } catch (e) {
       console.error('Failed to delete module:', e);
@@ -297,17 +262,13 @@ export default function SuperAdminDashboard() {
     if (!teamName.trim()) return;
 
     try {
-      await fetch('/api/v1/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: teamName, description: teamDesc }),
-      });
+      await teamApi.createTeam({ name: teamName, description: teamDesc });
       setTeamName('');
       setTeamDesc('');
       setShowTeamModal(false);
       fetchData();
-    } catch (err) {
-      console.error('Failed to create team:', err);
+    } catch (e) {
+      console.error('Failed to create team:', e);
     }
   };
 

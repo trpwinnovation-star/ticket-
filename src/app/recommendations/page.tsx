@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { recommendationApi } from '@/services/api/recommendation.api';
+import { teamApi } from '@/services/api/team.api';
+import { configApi } from '@/services/api/config.api';
 import {
   Lightbulb,
   UploadCloud,
@@ -43,8 +46,7 @@ export default function RecommendationsPage() {
 
   const fetchConfigOptions = async () => {
     try {
-      const res = await fetch('/api/v1/config/options', { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await configApi.getOptions();
       if (data.websites && data.websites.length > 0) {
         setWebsites(data.websites);
         setWebsiteName(data.websites[0].name);
@@ -60,8 +62,7 @@ export default function RecommendationsPage() {
   const fetchRecommendations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/recommendations', { headers: getAuthHeaders() });
-      const data = await res.json();
+      const data = await recommendationApi.getAll();
       if (data.recommendations) {
         setRecommendations(data.recommendations);
       }
@@ -76,14 +77,12 @@ export default function RecommendationsPage() {
     fetchConfigOptions();
     fetchRecommendations();
 
-    fetch('/api/v1/teams', { headers: getAuthHeaders() })
-      .then((res) => res.json())
+    teamApi.getTeams()
       .then((d) => d.teams && setTeams(d.teams))
       .catch((e) => console.error('Failed to fetch teams:', e));
 
     if (currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN' || currentRole === 'IT_SOFTWARE') {
-      fetch('/api/v1/admin/users', { headers: getAuthHeaders() })
-        .then((res) => res.json())
+      teamApi.getUsers()
         .then((d) => {
           if (d.users) {
             const list = d.users.filter((u: any) => u.role === 'IT_SOFTWARE' || u.role === 'MANAGER' || u.role === 'SUPER_ADMIN');
@@ -96,11 +95,7 @@ export default function RecommendationsPage() {
 
   const handleAssignTeam = async (recId: string, teamId: string) => {
     try {
-      await fetch(`/api/v1/recommendations/${recId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId: teamId || null }),
-      });
+      await recommendationApi.assign(recId, { teamId: teamId || null });
       fetchRecommendations();
     } catch (e) {
       console.error('Assign team failed:', e);
@@ -114,11 +109,7 @@ export default function RecommendationsPage() {
         const found = itUsers.find((u) => u.id === userId);
         if (found?.teamId) targetTeamId = found.teamId;
       }
-      await fetch(`/api/v1/recommendations/${recId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ assignedToId: userId || null, teamId: targetTeamId }),
-      });
+      await recommendationApi.assign(recId, { assignedToId: userId || null, teamId: targetTeamId });
       fetchRecommendations();
     } catch (e) {
       console.error('Assign specialist failed:', e);
@@ -127,13 +118,8 @@ export default function RecommendationsPage() {
 
   const handleConvertToTicket = async (recId: string, teamId?: string, assignedToId?: string) => {
     try {
-      const res = await fetch(`/api/v1/recommendations/${recId}/convert-to-ticket`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ teamId, assignedToId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ticket) {
+      const data = await recommendationApi.convertToTicket(recId, teamId, assignedToId);
+      if (data.ticket) {
         setConvertedTicketMsg(`Suggestion converted to Ticket ${data.ticket.ticketNumber}!`);
         setTimeout(() => setConvertedTicketMsg(''), 5000);
         fetchRecommendations();
@@ -199,20 +185,15 @@ export default function RecommendationsPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v1/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          websiteName: finalWebsite,
-          moduleName: finalModule,
-          screenshotUrl: screenshotUrl || undefined,
-          authorId: currentUser?.id,
-        }),
+      const data = await recommendationApi.create({
+        title: title.trim(),
+        description: description.trim(),
+        websiteName: finalWebsite,
+        moduleName: finalModule,
+        screenshotUrl: screenshotUrl || undefined,
+        authorId: currentUser?.id || '',
       });
 
-      const data = await res.json();
       if (data.success || data.recommendation) {
         setTitle('');
         setDescription('');
@@ -248,11 +229,7 @@ export default function RecommendationsPage() {
     );
 
     try {
-      const res = await fetch(`/api/v1/recommendations/${recId}/upvote`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
+      const data = await recommendationApi.toggleUpvote(recId);
       if (data.recommendation) {
         setRecommendations((prevRecs) =>
           prevRecs.map((r) => (r.id === recId ? data.recommendation : r))
@@ -266,11 +243,7 @@ export default function RecommendationsPage() {
 
   const handleUpdateStatus = async (recId: string, status: string) => {
     try {
-      await fetch(`/api/v1/recommendations/${recId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ status }),
-      });
+      await recommendationApi.updateStatus(recId, status);
       fetchRecommendations();
     } catch (err) {
       console.error('Failed to update recommendation status:', err);
