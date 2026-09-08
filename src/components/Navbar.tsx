@@ -82,20 +82,24 @@ export default function Navbar() {
     setNotifOpen(false);
   };
 
-  const navLinks = [
-    { href: '/', label: 'Overview', icon: LayoutDashboard },
-    { href: '/tickets', label: 'Tickets', icon: Ticket },
-    { href: '/recommendations', label: 'Suggestions', icon: Lightbulb },
-  ];
+  const navLinks: { href: string; label: string; icon: any }[] = [];
 
-  if (currentUser?.role === 'IT_SOFTWARE') {
-    navLinks.push({ href: '/team', label: 'Work Desk', icon: Users });
-  } else if (currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') {
-    navLinks.push({ href: '/team', label: 'Teams', icon: Users });
-  }
+  if (isAuthenticated && currentUser) {
+    navLinks.push(
+      { href: '/', label: 'Overview', icon: LayoutDashboard },
+      { href: '/tickets', label: 'Tickets', icon: Ticket },
+      { href: '/recommendations', label: 'Suggestions', icon: Lightbulb }
+    );
 
-  if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'MANAGER') {
-    navLinks.push({ href: '/admin', label: 'Admin', icon: Crown });
+    if (currentUser.role === 'IT_SOFTWARE') {
+      navLinks.push({ href: '/team', label: 'Work Desk', icon: Users });
+    } else if (currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') {
+      navLinks.push({ href: '/team', label: 'Teams', icon: Users });
+    }
+
+    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'MANAGER') {
+      navLinks.push({ href: '/admin', label: 'Admin', icon: Crown });
+    }
   }
 
   return (
@@ -109,52 +113,55 @@ export default function Navbar() {
             </div>
             <div>
               <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight flex items-center gap-1">
-                TicketPulse
-              </span>
-              <span className="text-[9px] text-slate-400 font-semibold block -mt-0.5 tracking-wider uppercase">
-                Support Hub
+                BetelTicket
               </span>
             </div>
           </Link>
 
-          {/* Center Navigation Links (Desktop) */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-100/70 p-1 rounded-xl border border-slate-200/60">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${isActive
-                    ? 'bg-white text-[#c16d18] shadow-2xs border border-slate-200/80'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                    }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#c16d18]' : 'text-slate-400'}`} />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Center Navigation Links (Desktop) - Authenticated Only */}
+          {isAuthenticated && currentUser && navLinks.length > 0 && (
+            <nav className="hidden lg:flex items-center gap-1 bg-slate-100/70 p-1 rounded-xl border border-slate-200/60">
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${isActive
+                      ? 'bg-white text-[#c16d18] shadow-2xs border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#c16d18]' : 'text-slate-400'}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2.5">
-            <Link
-              href="/recommendations"
-              className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-amber-300/80 bg-amber-50/70 text-amber-900 hover:bg-amber-100/80 text-[11px] font-bold transition-colors"
-            >
-              <Lightbulb className="w-3.5 h-3.5 text-[#c16d18]" />
-              <span>Suggest Feature</span>
-            </Link>
+            {isAuthenticated && currentUser && (
+              <>
+                <Link
+                  href="/recommendations"
+                  className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-amber-300/80 bg-amber-50/70 text-amber-900 hover:bg-amber-100/80 text-[11px] font-bold transition-colors"
+                >
+                  <Lightbulb className="w-3.5 h-3.5 text-[#c16d18]" />
+                  <span>Suggest Feature</span>
+                </Link>
 
-            <Link
-              href="/tickets/new"
-              className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-[11px] font-extrabold shadow-md shadow-[#c16d18]/20 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>Raise Ticket</span>
-            </Link>
+                <Link
+                  href="/tickets/new"
+                  className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-[11px] font-extrabold shadow-md shadow-[#c16d18]/20 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Raise Ticket</span>
+                </Link>
+              </>
+            )}
 
             {/* Notification Bell Dropdown */}
             {isAuthenticated && currentUser && (
@@ -272,19 +279,21 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+              {/* Mobile Menu Button - Authenticated Only */}
+              {isAuthenticated && currentUser && (
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
+        {/* Mobile Navigation Drawer - Authenticated Only */}
+        {isAuthenticated && currentUser && mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t border-slate-100 space-y-2">
             <div className="grid grid-cols-1 gap-1">
               {navLinks.map((link) => {

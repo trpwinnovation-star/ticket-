@@ -51,25 +51,7 @@ export default function TicketsPage() {
   }, [currentUser, isAuthenticated]);
 
   if (!isAuthenticated) {
-    return (
-      <div className="max-w-md mx-auto py-12 text-center space-y-6">
-        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#c16d18] text-white flex items-center justify-center font-bold text-2xl mx-auto shadow-lg shadow-[#c16d18]/30">
-            <TicketIcon className="w-7 h-7" />
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-900">Sign In Required</h2>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            You must be logged in with a valid user account to access support tickets, track status, or submit new technical issues.
-          </p>
-          <Link
-            href="/login"
-            className="w-full py-3 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white font-bold text-xs shadow-md shadow-[#c16d18]/20 transition-all flex items-center justify-center gap-2"
-          >
-            <span>Log In to View Tickets</span>
-          </Link>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Quick Approve Action for Managers

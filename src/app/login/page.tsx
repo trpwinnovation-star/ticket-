@@ -59,7 +59,7 @@ export default function LoginPage() {
           <Ticket className="w-7 h-7" />
         </div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-          {mode === 'login' ? 'Welcome Back to TicketPulse' : 'Create Your Account'}
+          {mode === 'login' ? 'Welcome Back to BetelTicket' : 'Create Your Account'}
         </h1>
         <p className="text-xs text-slate-500 font-medium mt-1">
           {mode === 'login'
@@ -172,7 +172,7 @@ export default function LoginPage() {
 
       {/* Demo Credentials Quick Login Helper */}
       {/* <div className="mt-8 bg-slate-900 text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-4"> */}
-        {/* <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      {/* <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div>
             <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-400" />
@@ -184,9 +184,9 @@ export default function LoginPage() {
           </div>
         </div> */}
 
-        {/* <div className="space-y-2.5"> */}
-          {/* Level 1: Guest User */}
-          {/* <button
+      {/* <div className="space-y-2.5"> */}
+      {/* Level 1: Guest User */}
+      {/* <button
             type="button"
             onClick={async () => {
               setEmail('priya.sharma@acmeretail.com');
@@ -219,8 +219,8 @@ export default function LoginPage() {
             </span>
           </button> */}
 
-          {/* Level 2: IT Software Specialist */}
-          {/* <button
+      {/* Level 2: IT Software Specialist */}
+      {/* <button
             type="button"
             onClick={async () => {
               setEmail('aarav.mehta@itcore.io');
@@ -253,8 +253,8 @@ export default function LoginPage() {
             </span>
           </button> */}
 
-          {/* Level 3: Manager / Account Lead */}
-          {/* <button
+      {/* Level 3: Manager / Account Lead */}
+      {/* <button
             type="button"
             onClick={async () => {
               setEmail('rajesh.singhania@orglead.com');
@@ -287,8 +287,8 @@ export default function LoginPage() {
             </span>
           </button> */}
 
-          {/* Level 4: Super Admin */}
-          {/* <button
+      {/* Level 4: Super Admin */}
+      {/* <button
             type="button"
             onClick={async () => {
               setEmail('kavita.reddy@platformglobal.org');
@@ -320,7 +320,7 @@ export default function LoginPage() {
               Sign In
             </span>
           </button> */}
-        {/* </div> */}
+      {/* </div> */}
       {/* </div> */}
     </div>
   );

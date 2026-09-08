@@ -168,51 +168,7 @@ export default function DashboardPage() {
   const myAssignedTickets = workDeskTab === 'ACTIVE' ? activeAssignedTickets : pendingTestingTickets;
 
   if (!isAuthenticated) {
-    return (
-      <div className="space-y-8 max-w-4xl mx-auto py-8">
-        {/* Unauthenticated Hero Banner */}
-        <div className="bg-gradient-to-r from-[#c16d18] to-[#d97d20] text-white rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 text-white border border-white/30 flex items-center justify-center font-bold text-3xl mx-auto shadow-lg backdrop-blur-xs">
-            <TicketIcon className="w-8 h-8" />
-          </div>
-
-          <div className="space-y-3 max-w-2xl mx-auto">
-            <span className="bg-amber-500/20 text-amber-300 text-xs font-extrabold px-3 py-1 rounded-full border border-amber-500/30 uppercase tracking-wider">
-              Authentication Required
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-              Enterprise Ticket & Recommendation Hub
-            </h1>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              To raise support requests, view ticket statuses, access Teams work logs, or manage platform settings, please sign in or register an account.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <Link
-              href="/login"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white font-extrabold text-sm shadow-xl shadow-[#c16d18]/30 transition-all hover:scale-105 flex items-center justify-center gap-2"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Sign In / Create Account</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Access Protection Notice */}
-        {/* <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#c16d18] flex items-center justify-center shrink-0">
-            <ShieldAlert className="w-6 h-6" />
-          </div> */}
-        {/* <div>
-            <h3 className="text-sm font-bold text-slate-900">Protected Platform Portal</h3>
-            <p className="text-xs text-slate-500">
-              Unauthenticated users are restricted from viewing ticket titles, diagnostics, or IT work logs to protect target client platforms.
-            </p>
-          </div> */}
-        {/* </div> */}
-      </div>
-    );
+    return null;
   }
 
   return (
