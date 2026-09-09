@@ -210,12 +210,12 @@ export default function TeamPage() {
         </div>
 
         {isITSpecialist ? (
-          <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 text-center shrink-0">
+          <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 text-center shrink-0 w-full md:w-auto">
             <p className="text-2xl font-black text-blue-300">{assignedTickets.length}</p>
             <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Tickets Assigned to You</p>
           </div>
         ) : (
-          <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 text-center shrink-0">
+          <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 text-center shrink-0 w-full md:w-auto">
             <p className="text-2xl font-black text-amber-300">{teams.length}</p>
             <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Active Teams</p>
           </div>
@@ -408,10 +408,10 @@ export default function TeamPage() {
         </div>
       ) : (
         /* Manager & Super Admin View: Full Width Subcontractor Teams Management Roster */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="font-black text-slate-900 text-lg flex items-center gap-2">
+              <h2 className="font-black text-slate-900 text-base sm:text-lg flex items-center gap-2">
                 <Building className="w-5 h-5 text-[#c16d18]" />
                 <span>Audit & Engineering Teams Roster</span>
               </h2>
@@ -419,7 +419,7 @@ export default function TeamPage() {
                 Assign engineers and specialists to operational subcontractor units.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
               <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs font-extrabold px-3 py-1 rounded-full">
                 {teams.length} Registered Teams
               </span>
@@ -450,13 +450,13 @@ export default function TeamPage() {
                 const memberCount = teamMembers.length || team.members?.length || 0;
 
                 return (
-                  <div key={team.id} className="p-6 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all space-y-4 shadow-xs">
-                    <div className="flex items-start justify-between gap-3">
+                  <div key={team.id} className="p-5 sm:p-6 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all space-y-4 shadow-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div>
                         <h3 className="font-extrabold text-sm text-slate-900">{team.name}</h3>
                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">{team.description}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 self-start">
                         <span className="text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1 rounded-full">
                           {memberCount} {memberCount === 1 ? 'Member' : 'Members'}
                         </span>
@@ -474,7 +474,7 @@ export default function TeamPage() {
 
                     {/* Members List */}
                     <div className="pt-3 border-t border-slate-200 space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">Assigned Team Members</span>
                         <button
                           onClick={() => { setSelectedTeamForAdd(team); setSelectedUserIdToAdd(''); }}

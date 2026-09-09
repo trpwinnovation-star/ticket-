@@ -476,16 +476,16 @@ export default function RecommendationsPage() {
 
                   {/* Team & Specialist Assignment Bar for Manager/Super Admin */}
                   {(currentRole === 'SUPER_ADMIN' || currentRole === 'MANAGER') && (
-                    <div className="flex items-center gap-3 pt-3 border-t border-slate-100 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 min-w-0">
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto min-w-0">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 shrink-0">
                           <Building className="w-3 h-3 text-[#c16d18]" />
                           <span>Team:</span>
                         </span>
                         <select
                           value={rec.teamId || ''}
                           onChange={(e) => handleAssignTeam(rec.id, e.target.value)}
-                          className="px-2 py-1 text-[11px] font-bold border border-slate-300 rounded-lg bg-white"
+                          className="flex-1 sm:flex-initial min-w-0 px-2 py-1 text-[11px] font-bold border border-slate-300 rounded-lg bg-white truncate"
                         >
                           <option value="">-- Assign Team --</option>
                           {teams.map((t: any) => (
@@ -496,15 +496,15 @@ export default function RecommendationsPage() {
                         </select>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto min-w-0">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 shrink-0">
                           <UserCheck className="w-3 h-3 text-blue-600" />
                           <span>Specialist:</span>
                         </span>
                         <select
                           value={rec.assignedToId || ''}
                           onChange={(e) => handleAssignSpecialist(rec.id, e.target.value)}
-                          className="px-2 py-1 text-[11px] font-bold border border-slate-300 rounded-lg bg-white"
+                          className="flex-1 sm:flex-initial min-w-0 px-2 py-1 text-[11px] font-bold border border-slate-300 rounded-lg bg-white truncate"
                         >
                           <option value="">-- Unassigned --</option>
                           {itSpecialists
@@ -513,7 +513,7 @@ export default function RecommendationsPage() {
                               const userTeam = teams.find((t: any) => t.id === u.teamId || t.members?.some((m: any) => m.id === u.id));
                               return (
                                 <option key={u.id} value={u.id}>
-                                  {u.name} {userTeam ? `[Team: ${userTeam.name}]` : `(${u.jobTitle || 'IT Specialist'})`}
+                                  {u.name} {userTeam ? `(${userTeam.name})` : ''}
                                 </option>
                               );
                             })}
@@ -521,16 +521,16 @@ export default function RecommendationsPage() {
                       </div>
 
                       {rec.isConverted || rec.status === 'IMPLEMENTED' ? (
-                        <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-bold rounded-lg flex items-center gap-1 sm:ml-auto">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1 w-full sm:w-auto sm:ml-auto">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span>Converted to Ticket {rec.convertedTicketNumber ? `(#${rec.convertedTicketNumber})` : ''}</span>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleConvertToTicket(rec.id, rec.teamId, rec.assignedToId)}
-                          className="px-3 py-1.5 bg-[#c16d18] hover:bg-[#a35810] text-white text-[11px] font-bold rounded-lg flex items-center gap-1 shadow-xs transition-all sm:ml-auto"
+                          className="px-3 py-1.5 bg-[#c16d18] hover:bg-[#a35810] text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1 shadow-xs transition-all w-full sm:w-auto sm:ml-auto"
                         >
-                          <TicketIcon className="w-3.5 h-3.5" />
+                          <TicketIcon className="w-3.5 h-3.5 shrink-0" />
                           <span>Convert to Active Ticket</span>
                         </button>
                       )}

@@ -536,7 +536,7 @@ export default function ProfilePage() {
                       currentUser.role === 'IT_SOFTWARE' ? 'Level 2: IT Engineering Technical Staff' :
                         'Level 1: Portal Guest User'}
                 </p>
-              </div> */}
+              </div> */} 
             </div>
           </div>
         )}
