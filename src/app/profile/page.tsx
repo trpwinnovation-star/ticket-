@@ -232,8 +232,8 @@ export default function ProfilePage() {
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${activeTab === 'profile'
-                ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
           >
             <User className="w-4 h-4" />
@@ -243,8 +243,8 @@ export default function ProfilePage() {
           <button
             onClick={() => setActiveTab('security')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${activeTab === 'security'
-                ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
           >
             <KeyRound className="w-4 h-4" />
@@ -254,8 +254,8 @@ export default function ProfilePage() {
           <button
             onClick={() => setActiveTab('account')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${activeTab === 'account'
-                ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              ? 'bg-white text-[#c16d18] shadow-xs border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -528,7 +528,7 @@ export default function ProfilePage() {
                 <p className="font-bold text-slate-800">{currentUser.role.replace('_', ' ')}</p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+              {/* <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                 <p className="text-slate-400 font-bold uppercase text-[10px]">Portal Access Level</p>
                 <p className="font-bold text-[#c16d18]">
                   {currentUser.role === 'SUPER_ADMIN' ? 'Level 4: Global Platform Administrator' :
@@ -536,7 +536,7 @@ export default function ProfilePage() {
                       currentUser.role === 'IT_SOFTWARE' ? 'Level 2: IT Engineering Technical Staff' :
                         'Level 1: Portal Guest User'}
                 </p>
-              </div>
+              </div> */}
             </div>
           </div>
         )}
