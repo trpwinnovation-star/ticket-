@@ -5,8 +5,8 @@ import crypto from 'crypto';
 
 type Actor = { id: string; role: 'GUEST_USER' | 'IT_SOFTWARE' | 'MANAGER' | 'SUPER_ADMIN'; teamId?: string | null; };
 
-function canAccessTicket(ticket: { createdById: string; assignedToId: string | null; teamId: string | null }, actor: Actor) {
-  return actor.role === 'SUPER_ADMIN' || actor.role === 'MANAGER' || ticket.createdById === actor.id || ticket.assignedToId === actor.id || (Boolean(ticket.teamId) && ticket.teamId === actor.teamId);
+function canAccessTicket(ticket: { createdById: string; assignedToId: string | null; testedById?: string | null; teamId: string | null }, actor: Actor) {
+  return actor.role === 'SUPER_ADMIN' || actor.role === 'MANAGER' || ticket.createdById === actor.id || ticket.assignedToId === actor.id || ticket.testedById === actor.id || (Boolean(ticket.teamId) && ticket.teamId === actor.teamId);
 }
 
 export interface CreateTicketDTO {
@@ -49,12 +49,13 @@ export class TicketService {
   static async getAllTickets(actor: Actor) {
     const where = actor.role === 'SUPER_ADMIN' || actor.role === 'MANAGER'
       ? undefined
-      : { OR: [{ createdById: actor.id }, { assignedToId: actor.id }, { team: { members: { some: { id: actor.id } } } }] };
+      : { OR: [{ createdById: actor.id }, { assignedToId: actor.id }, { testedById: actor.id }, { team: { members: { some: { id: actor.id } } } }] };
     const tickets = await prisma.ticket.findMany({
       where,
       include: {
         createdBy: true,
         assignedTo: true,
+        testedBy: true,
         team: true,
         comments: {
           include: { author: true },
@@ -80,6 +81,7 @@ export class TicketService {
       include: {
         createdBy: true,
         assignedTo: true,
+        testedBy: true,
         team: true,
         comments: {
           include: { author: true },
@@ -270,7 +272,13 @@ export class TicketService {
     if (actor?.role === 'IT_SOFTWARE' && current.assignedToId !== actor.id && (!current.teamId || current.teamId !== actor.teamId)) {
       throw new Error('You are not assigned to this ticket.');
     }
-    const isClosed = status === TicketStatus.RESOLVED || status === TicketStatus.COMPLETED || status === TicketStatus.CLOSED;
+
+    const isRestrictedStatus = status === TicketStatus.RESOLVED || status === TicketStatus.COMPLETED || status === TicketStatus.CLOSED;
+    if (isRestrictedStatus && actor?.role !== 'MANAGER' && actor?.role !== 'SUPER_ADMIN') {
+      throw new Error('Only Managers and Super Admins have permission to mark tickets as RESOLVED, COMPLETED, or CLOSED.');
+    }
+
+    const isClosed = isRestrictedStatus;
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
       data: {
@@ -441,6 +449,208 @@ export class TicketService {
     } catch (e) {
       console.warn('Update notification failed:', e);
     }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Assign a Tester for testing the module (and transition status to PENDING_TESTING)
+   */
+  static async assignTester(
+    ticketId: string,
+    testedById: string | null,
+    environment?: string | null,
+    branchName?: string | null,
+    actor?: Actor
+  ) {
+    const current = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!current) throw new Error('Ticket not found.');
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        testedById: testedById || null,
+        status: TicketStatus.PENDING_TESTING,
+        testingStatus: 'PENDING',
+        environment: environment !== undefined ? environment : undefined,
+        branchName: branchName !== undefined ? branchName : undefined,
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: true,
+      },
+    });
+
+    if (testedById) {
+      try {
+        await NotificationService.notifyStakeholders({
+          recipientIds: [testedById],
+          title: `Assigned for Testing on Ticket ${updated.ticketNumber}`,
+          message: `You have been assigned as the Tester for module "${updated.module || 'General'}" on ticket "${updated.title}".`,
+          type: 'ASSIGNMENT',
+          link: `/tickets/${updated.id}`,
+        });
+      } catch (e) {
+        console.warn('Testing assignment notification failed:', e);
+      }
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Submit module testing result (PASSED or FAILED) by assigned Tester, Manager, or Admin
+   */
+  static async submitTestingResult(
+    ticketId: string,
+    passed: boolean,
+    feedback: string | undefined,
+    actor: Actor
+  ) {
+    const current = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!current) throw new Error('Ticket not found.');
+
+    const isTester = current.testedById === actor.id;
+    const isManagerOrAdmin = actor.role === 'MANAGER' || actor.role === 'SUPER_ADMIN';
+
+    if (!isTester && !isManagerOrAdmin) {
+      throw new Error('Only the assigned tester or manager may submit testing results.');
+    }
+
+    let updatedStatus = current.status;
+    let newTestingStatus = passed ? 'PASSED' : 'FAILED';
+    let assignedToId = current.assignedToId;
+
+    if (!passed) {
+      // Reassign back to developer and revert status to IN_PROGRESS
+      updatedStatus = TicketStatus.IN_PROGRESS;
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        testingStatus: newTestingStatus,
+        testingFeedback: feedback || (passed ? 'Module testing passed.' : 'Module testing failed.'),
+        status: updatedStatus,
+        assignedToId,
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: true,
+      },
+    });
+
+    // Create an internal comment recording the test feedback
+    const testerUser = await prisma.user.findUnique({ where: { id: actor.id } });
+    const testerName = testerUser?.name || 'Tester';
+    const commentContent = passed
+      ? `✅ MODULE TESTING PASSED: ${feedback || 'Verification completed successfully.'}`
+      : `❌ MODULE TESTING FAILED: ${feedback || 'Testing failed during verification. Reassigned to developer.'}`;
+
+    await prisma.comment.create({
+      data: {
+        ticketId,
+        authorId: actor.id,
+        content: commentContent,
+        isInternal: true,
+      },
+    });
+
+    // Send notifications to stakeholders and all Managers / Super Admins for status update action
+    try {
+      const managersAndAdmins = await prisma.user.findMany({
+        where: { role: { in: ['MANAGER', 'SUPER_ADMIN'] } },
+        select: { id: true },
+      });
+      const managerAdminIds = managersAndAdmins.map((u) => u.id);
+
+      const recipientIds = Array.from(
+        new Set([
+          ...managerAdminIds,
+          updated.createdById,
+          ...(updated.assignedToId ? [updated.assignedToId] : []),
+          ...(updated.testedById ? [updated.testedById] : []),
+        ])
+      );
+
+      await NotificationService.notifyStakeholders({
+        recipientIds,
+        excludeUserId: actor.id,
+        title: passed ? `QA Testing PASSED for Ticket ${updated.ticketNumber}` : `QA Testing FAILED for Ticket ${updated.ticketNumber}`,
+        message: passed
+          ? `${testerName} marked module testing as PASSED for ticket "${updated.title}". Please review and update/complete ticket status.`
+          : `${testerName} marked module testing as FAILED for ticket "${updated.title}": ${feedback || 'No feedback provided'}. Reassigned to developer.`,
+        type: 'STATUS_CHANGE',
+        link: `/tickets/${updated.id}`,
+      });
+    } catch (e) {
+      console.warn('Testing result notification failed:', e);
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Complete Ticket after successful testing (Level 3/4 Manager/Admin action)
+   */
+  static async completeTicket(ticketId: string, actor: Actor) {
+    if (actor.role !== 'MANAGER' && actor.role !== 'SUPER_ADMIN') {
+      throw new Error('Only managers or super admins may complete tickets.');
+    }
+    const current = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!current) throw new Error('Ticket not found.');
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: TicketStatus.COMPLETED,
+        closedAt: new Date(),
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: true,
+      },
+    });
+
+    try {
+      await NotificationService.notifyStakeholders({
+        recipientIds: [updated.createdById, updated.assignedToId, updated.testedById],
+        excludeUserId: actor.id,
+        title: `Ticket ${updated.ticketNumber} Completed`,
+        message: `Ticket has been verified and marked as COMPLETED by management.`,
+        type: 'STATUS_CHANGE',
+        link: `/tickets/${updated.id}`,
+      });
+    } catch (e) {
+      console.warn('Completion notification failed:', e);
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Update Environment and Branch information on a ticket
+   */
+  static async updateEnvironment(ticketId: string, environment: string | null, branchName: string | null, actor: Actor) {
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        environment: environment !== undefined ? environment : undefined,
+        branchName: branchName !== undefined ? branchName : undefined,
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: true,
+      },
+    });
 
     return { source: 'prisma_database', ticket: updated };
   }

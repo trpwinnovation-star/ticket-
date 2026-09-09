@@ -137,7 +137,7 @@ export default function NewTicketPage() {
       </button>
 
       <div className="bg-gradient-to-r from-[#c16d18] to-[#d97d20] text-white p-6 sm:p-8 rounded-2xl shadow-lg space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="bg-white/20 text-white border border-white/30 text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full backdrop-blur-xs">
             Submit Support Request
           </span>
@@ -310,18 +310,18 @@ export default function NewTicketPage() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+        <div className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 text-center"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold shadow-md shadow-[#c16d18]/25 transition-all flex items-center gap-2"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold shadow-md shadow-[#c16d18]/25 transition-all flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <span>Submitting Ticket...</span>

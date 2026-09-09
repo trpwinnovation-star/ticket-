@@ -185,4 +185,65 @@ export class TicketController {
       next(err);
     }
   }
+
+  /**
+   * POST /api/v1/tickets/:id/assign-tester
+   */
+  static async assignTester(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { testedById, environment, branchName } = req.body;
+      const result = await TicketService.assignTester(ticketId, testedById, environment, branchName, req.user);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/tickets/:id/submit-testing
+   */
+  static async submitTesting(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { passed, feedback } = req.body;
+      if (typeof passed !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'passed boolean parameter is required.' });
+      }
+      if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+      const result = await TicketService.submitTestingResult(ticketId, passed, feedback, req.user);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/tickets/:id/complete
+   */
+  static async complete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+      const result = await TicketService.completeTicket(ticketId, req.user);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * PATCH /api/v1/tickets/:id/environment
+   */
+  static async updateEnvironment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { environment, branchName } = req.body;
+      if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+      const result = await TicketService.updateEnvironment(ticketId, environment, branchName, req.user);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

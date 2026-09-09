@@ -20,7 +20,7 @@ export class WorkLogController {
    */
   static async logHours(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { ticketId, hoursSpent, description, workDate } = req.body;
+      const { ticketId, hoursSpent, description, workDate, environment, branchName } = req.body;
       if (!ticketId || hoursSpent === undefined || !description) {
         return res.status(400).json({
           success: false,
@@ -36,6 +36,8 @@ export class WorkLogController {
         hoursSpent: Number(hoursSpent),
         description,
         workDate,
+        environment,
+        branchName,
       });
 
       res.status(201).json({ success: true, ...result });

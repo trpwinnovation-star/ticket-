@@ -316,11 +316,19 @@ export default function Navbar() {
               })}
             </div>
 
-            <div className="pt-2 flex flex-col gap-2 sm:hidden">
+            <div className="pt-2 flex flex-col gap-2 border-t border-slate-100">
+              <Link
+                href="/recommendations"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-2.5 rounded-xl border border-amber-300/80 bg-amber-50/80 text-amber-900 text-xs font-bold flex items-center justify-center gap-2"
+              >
+                <Lightbulb className="w-4 h-4 text-[#c16d18]" />
+                <span>Suggest Feature</span>
+              </Link>
               <Link
                 href="/tickets/new"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 rounded-xl bg-[#c16d18] text-white text-xs font-bold flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-[#c16d18] text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Raise Ticket</span>

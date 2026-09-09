@@ -324,7 +324,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Tickets</span>

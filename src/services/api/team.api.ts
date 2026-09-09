@@ -11,6 +11,8 @@ export interface CreateWorkLogPayload {
   hoursSpent: number;
   description: string;
   workDate?: string;
+  environment?: string | null;
+  branchName?: string | null;
 }
 
 export const teamApi = {

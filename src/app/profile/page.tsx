@@ -411,7 +411,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="px-6 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold shadow-md shadow-[#c16d18]/20 flex items-center gap-2 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold shadow-md shadow-[#c16d18]/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
                 <span>{savingProfile ? 'Saving Changes...' : 'Save Profile Changes'}</span>

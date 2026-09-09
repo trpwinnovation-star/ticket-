@@ -48,6 +48,10 @@ export default function TicketsPage() {
 
   useEffect(() => {
     fetchTickets();
+
+    const handleFocus = () => fetchTickets();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [currentUser, isAuthenticated]);
 
   if (!isAuthenticated) {
@@ -76,7 +80,12 @@ export default function TicketsPage() {
 
     const matchesStatus = statusFilter === 'ALL' || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === 'ALL' || ticket.priority === priorityFilter;
-    const matchesMine = !onlyMine || ticket.createdById === currentUser?.id || ticket.assignedToId === currentUser?.id;
+    const matchesMine =
+      !onlyMine ||
+      ticket.createdById === currentUser?.id ||
+      ticket.assignedToId === currentUser?.id ||
+      ticket.testedById === currentUser?.id ||
+      (Boolean((currentUser as any)?.teamId) && ticket.teamId === (currentUser as any)?.teamId);
 
     return matchesSearch && matchesStatus && matchesPriority && matchesMine;
   });
@@ -97,7 +106,7 @@ export default function TicketsPage() {
 
         <Link
           href="/tickets/new"
-          className="px-4 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-[#c16d18]/20 transition-all hover:scale-105 shrink-0"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-[#c16d18]/20 transition-all shrink-0"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Raise New Ticket</span>
@@ -196,6 +205,30 @@ export default function TicketsPage() {
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
                       {t.status.replace('_', ' ')}
                     </span>
+
+                    {t.environment && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                        t.environment === 'PROD'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : t.environment === 'UAT'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
+                        Env: {t.environment}
+                      </span>
+                    )}
+
+                    {t.testingStatus && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                        t.testingStatus === 'PASSED'
+                          ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          : t.testingStatus === 'FAILED'
+                          ? 'bg-red-100 text-red-900 border-red-300'
+                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                      }`}>
+                        Test: {t.testingStatus}
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#c16d18] transition-colors">

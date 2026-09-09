@@ -24,6 +24,12 @@ import {
   Users,
   Building,
   Pencil,
+  GitBranch,
+  TestTube,
+  Server,
+  Check,
+  XCircle,
+  CheckCheck,
 } from 'lucide-react';
 
 export default function TicketDetailPage() {
@@ -57,6 +63,18 @@ export default function TicketDetailPage() {
   const [teams, setTeams] = useState<any[]>([]);
   const [configWebsites, setConfigWebsites] = useState<any[]>([]);
   const [configModules, setConfigModules] = useState<any[]>([]);
+
+  // Testing Workflow & Environment State
+  const [testedByIdState, setTestedByIdState] = useState<string>('');
+  const [selectedEnv, setSelectedEnv] = useState<string>('UAT');
+  const [branchNameState, setBranchNameState] = useState<string>('');
+  const [workEnv, setWorkEnv] = useState<string>('UAT');
+  const [workBranch, setWorkBranch] = useState<string>('');
+  const [showTesterModal, setShowTesterModal] = useState<boolean>(false);
+  const [showTestResultModal, setShowTestResultModal] = useState<boolean>(false);
+  const [testPassedChoice, setTestPassedChoice] = useState<boolean>(true);
+  const [testingFeedbackInput, setTestingFeedbackInput] = useState<string>('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   // Edit Ticket Form State
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -129,6 +147,16 @@ export default function TicketDetailPage() {
           setTargetClosureDate('');
         }
 
+        if (data.ticket.testedById) setTestedByIdState(data.ticket.testedById);
+        if (data.ticket.environment) {
+          setSelectedEnv(data.ticket.environment);
+          setWorkEnv(data.ticket.environment);
+        }
+        if (data.ticket.branchName) {
+          setBranchNameState(data.ticket.branchName);
+          setWorkBranch(data.ticket.branchName);
+        }
+
         // Mark ticket as seen/viewed by current user in local tracking
         if (currentUser?.id && ticketId) {
           try {
@@ -164,19 +192,56 @@ export default function TicketDetailPage() {
       })
       .catch((e) => console.error('Failed to load target options:', e));
 
-    if ((currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN')) {
-      teamApi.getUsers()
-        .then((data) => {
-          if (data.users) {
-            const list = data.users.filter((u: any) => u.role === 'IT_SOFTWARE');
-            if (list.length > 0) setItUsers(list);
-          }
-        })
-        .catch((e) => console.error('Failed to fetch IT staff:', e));
-    }
+    teamApi.getUsers()
+      .then((data) => {
+        if (data.users) {
+          setAllUsers(data.users);
+          const list = data.users.filter((u: any) => u.role === 'IT_SOFTWARE');
+          if (list.length > 0) setItUsers(list);
+        }
+      })
+      .catch((e) => console.error('Failed to fetch users:', e));
   }, [ticketId, currentUser]);
 
   const itSpecialists = itUsers;
+
+  const handleAssignTesterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await ticketApi.assignTester(ticketId, {
+        testedById: testedByIdState || null,
+        environment: selectedEnv || null,
+        branchName: branchNameState || null,
+      });
+      setShowTesterModal(false);
+      fetchTicket();
+    } catch (e) {
+      console.error('Assign tester failed:', e);
+    }
+  };
+
+  const handleSubmitTestingResult = async (passed: boolean) => {
+    try {
+      await ticketApi.submitTesting(ticketId, {
+        passed,
+        feedback: testingFeedbackInput,
+      });
+      setShowTestResultModal(false);
+      setTestingFeedbackInput('');
+      fetchTicket();
+    } catch (e) {
+      console.error('Submit testing failed:', e);
+    }
+  };
+
+  const handleCompleteTicket = async () => {
+    try {
+      await ticketApi.completeTicket(ticketId);
+      fetchTicket();
+    } catch (e) {
+      console.error('Complete ticket failed:', e);
+    }
+  };
 
   const handleStatusUpdate = async (newStatus: string) => {
     try {
@@ -366,8 +431,8 @@ export default function TicketDetailPage() {
 
         {/* Manager Action Banner */}
         {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') && ticket.status === 'PENDING_APPROVAL' && (
-          <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-300 p-2.5 px-3.5 rounded-xl flex-wrap">
-            <span className="text-xs font-bold text-amber-900">Manager Action:</span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-amber-50 border border-amber-300 p-3 rounded-2xl w-full sm:w-auto">
+            <span className="text-xs font-bold text-amber-900 shrink-0">Manager Action:</span>
             <select
               value={selectedTeamId}
               onChange={(e) => {
@@ -381,7 +446,7 @@ export default function TicketDetailPage() {
                   if (!isMember) setAssigneeId('');
                 }
               }}
-              className="px-2.5 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
+              className="w-full sm:w-auto px-2.5 py-1.5 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
             >
               <option value="">-- Assign Team (Broadcasts to members) --</option>
               {teams.map((t: any) => (
@@ -404,7 +469,7 @@ export default function TicketDetailPage() {
                   }
                 }
               }}
-              className="px-2.5 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
+              className="w-full sm:w-auto px-2.5 py-1.5 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
             >
               <option value="">-- Assign Specialist (Optional) --</option>
               {itSpecialists.map((u: any) => {
@@ -419,34 +484,36 @@ export default function TicketDetailPage() {
             <select
               value={selectedPriority}
               onChange={(e) => setSelectedPriority(e.target.value)}
-              className="px-2.5 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
+              className="w-full sm:w-auto px-2.5 py-1.5 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
             >
               <option value="LOW">Low Priority</option>
               <option value="MEDIUM">Medium Priority</option>
               <option value="HIGH">High Priority</option>
               <option value="URGENT">Urgent Priority</option>
             </select>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-amber-900">Target Closure:</span>
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-[11px] font-bold text-amber-900 shrink-0">Target Closure:</span>
               <input
                 type="date"
                 value={targetClosureDate}
                 onChange={(e) => setTargetClosureDate(e.target.value)}
-                className="px-2 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
+                className="w-full sm:w-auto px-2 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
               />
             </div>
-            <button
-              onClick={handleApprove}
-              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs"
-            >
-              Approve & Assign
-            </button>
-            <button
-              onClick={() => setShowRejectModal(true)}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
-            >
-              Reject
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
+              <button
+                onClick={handleApprove}
+                className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs"
+              >
+                Approve & Assign
+              </button>
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+              >
+                Reject
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -466,6 +533,40 @@ export default function TicketDetailPage() {
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
                   {ticket.status.replace('_', ' ')}
                 </span>
+
+                {ticket.environment && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${
+                    ticket.environment === 'PROD'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : ticket.environment === 'UAT'
+                      ? 'bg-purple-100 text-purple-900 border-purple-300'
+                      : 'bg-blue-100 text-blue-900 border-blue-300'
+                  }`}>
+                    <Server className="w-3 h-3" />
+                    <span>Env: {ticket.environment}</span>
+                  </span>
+                )}
+
+                {ticket.branchName && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-800 border border-slate-300 flex items-center gap-1">
+                    <GitBranch className="w-3 h-3 text-purple-600" />
+                    <span>{ticket.branchName}</span>
+                  </span>
+                )}
+
+                {ticket.testingStatus && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${
+                    ticket.testingStatus === 'PASSED'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : ticket.testingStatus === 'FAILED'
+                      ? 'bg-red-100 text-red-900 border-red-300'
+                      : 'bg-amber-100 text-amber-900 border-amber-300'
+                  }`}>
+                    <TestTube className="w-3 h-3" />
+                    <span>Test: {ticket.testingStatus}</span>
+                  </span>
+                )}
+
                 {ticket.team && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 flex items-center gap-1">
                     <Building className="w-3 h-3 text-blue-600" />
@@ -488,6 +589,114 @@ export default function TicketDetailPage() {
             <h1 className="text-xl font-extrabold text-slate-900 leading-tight">{ticket.title}</h1>
 
             <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{ticket.description}</p>
+
+            {/* Module Verification & QA Testing Panel */}
+            {(ticket.status === 'PENDING_TESTING' || ticket.testingStatus || ticket.testedById) && (
+              <div className={`p-5 rounded-2xl border shadow-xs space-y-4 ${
+                ticket.testingStatus === 'PASSED'
+                  ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                  : ticket.testingStatus === 'FAILED'
+                  ? 'bg-red-50/80 border-red-200 text-red-950'
+                  : 'bg-amber-50/80 border-amber-200 text-amber-950'
+              }`}>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs ${
+                      ticket.testingStatus === 'PASSED'
+                        ? 'bg-emerald-600'
+                        : ticket.testingStatus === 'FAILED'
+                        ? 'bg-red-600'
+                        : 'bg-amber-600'
+                    }`}>
+                      <TestTube className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                        <span>Module Verification & QA Testing</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          ticket.testingStatus === 'PASSED'
+                            ? 'bg-emerald-200 text-emerald-900'
+                            : ticket.testingStatus === 'FAILED'
+                            ? 'bg-red-200 text-red-900'
+                            : 'bg-amber-200 text-amber-900'
+                        }`}>
+                          {ticket.testingStatus || 'PENDING'}
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-600 font-medium mt-0.5">
+                        Assigned Tester: <strong className="text-slate-900">{ticket.testedBy?.name || 'Unassigned'}</strong>
+                        {ticket.environment && ` | Target Env: ${ticket.environment}`}
+                        {ticket.branchName && ` | Branch: ${ticket.branchName}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN' || currentRole === 'IT_SOFTWARE') && (
+                      <button
+                        onClick={() => {
+                          setTestedByIdState(ticket.testedById || '');
+                          setSelectedEnv(ticket.environment || 'UAT');
+                          setBranchNameState(ticket.branchName || '');
+                          setShowTesterModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+                        <span>{ticket.testedById ? 'Reassign Tester' : 'Assign Tester'}</span>
+                      </button>
+                    )}
+
+                    {ticket.testingStatus === 'PASSED' && ticket.status !== 'COMPLETED' && (currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') && (
+                      <button
+                        onClick={handleCompleteTicket}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Mark Ticket as COMPLETED</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {ticket.testingFeedback && (
+                  <div className="p-3 rounded-xl bg-white/90 border border-slate-200 text-xs text-slate-800 space-y-1">
+                    <p className="font-bold text-slate-900 text-[11px] uppercase tracking-wider">Tester Feedback Remarks:</p>
+                    <p className="italic leading-relaxed">{ticket.testingFeedback}</p>
+                  </div>
+                )}
+
+                {(currentUser?.id === ticket.testedById || currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') && ticket.status === 'PENDING_TESTING' && (
+                  <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <span className="text-xs font-extrabold text-slate-900">Submit Module Testing Verdict:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setTestPassedChoice(true);
+                          setTestingFeedbackInput('');
+                          setShowTestResultModal(true);
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Pass Testing</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTestPassedChoice(false);
+                          setTestingFeedbackInput('');
+                          setShowTestResultModal(true);
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Fail Testing (Reassign to Dev)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Attachments & Screenshots */}
             {ticket.attachments && ticket.attachments.length > 0 && (
@@ -557,10 +766,29 @@ export default function TicketDetailPage() {
                 </p>
               ) : (
                 ticket.workLogs.map((log: any) => (
-                  <div key={log.id} className="py-3 flex items-center justify-between gap-4 text-xs">
-                    <div>
-                      <p className="font-bold text-slate-800">{log.user?.name || 'IT Staff'}</p>
-                      <p className="text-slate-500">{log.description}</p>
+                  <div key={log.id} className="py-3 flex items-start justify-between gap-4 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-800">{log.user?.name || 'IT Staff'}</span>
+                        {log.environment && (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                            log.environment === 'PROD'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : log.environment === 'UAT'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}>
+                            Env: {log.environment}
+                          </span>
+                        )}
+                        {log.branchName && (
+                          <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1">
+                            <GitBranch className="w-3 h-3" />
+                            <span>{log.branchName}</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-600 leading-relaxed">{log.description}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-black text-blue-600">{log.hoursSpent} hrs</p>
@@ -827,10 +1055,15 @@ export default function TicketDetailPage() {
                   <option value="APPROVED">APPROVED</option>
                   <option value="ASSIGNED">ASSIGNED</option>
                   <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="NEED_MORE_DETAILS">NEED_MORE_DETAILS</option>
                   <option value="PENDING_TESTING">PENDING_TESTING</option>
-                  <option value="RESOLVED">RESOLVED</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="CLOSED">CLOSED</option>
+                  {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') && (
+                    <>
+                      <option value="RESOLVED">RESOLVED (Manager/Admin Only)</option>
+                      <option value="COMPLETED">COMPLETED (Manager/Admin Only)</option>
+                      <option value="CLOSED">CLOSED (Manager/Admin Only)</option>
+                    </>
+                  )}
                 </select>
               </div>
             )}
@@ -843,26 +1076,53 @@ export default function TicketDetailPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <form onSubmit={handleLogWork} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="font-bold text-base text-slate-900">Log IT Technical Work Hours</h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Target Environment *</label>
+                <select
+                  value={workEnv}
+                  onChange={(e) => setWorkEnv(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 bg-white font-bold text-slate-900"
+                >
+                  <option value="DEV">DEV (Development)</option>
+                  <option value="UAT">UAT (Staging/QA)</option>
+                  <option value="PROD">PROD (Production)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Branch / Commit Ref</label>
+                <input
+                  type="text"
+                  value={workBranch}
+                  onChange={(e) => setWorkBranch(e.target.value)}
+                  placeholder="e.g. fix/auth-leak"
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 font-mono text-purple-950 font-bold"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Hours Spent (e.g. 2.5)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Hours Spent (e.g. 2.5) *</label>
               <input
                 type="number"
                 step="0.5"
                 required
                 value={hoursSpent}
                 onChange={(e) => setHoursSpent(e.target.value)}
-                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40"
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 font-bold text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Work Log Description</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Work Log Description *</label>
               <textarea
                 required
                 rows={3}
                 value={workDesc}
                 onChange={(e) => setWorkDesc(e.target.value)}
-                placeholder="Details of code fix, server config, or bug investigation..."
-                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40"
+                placeholder="Details of code fix, server config, branch deployment, or bug investigation..."
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 text-slate-900"
               />
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -881,6 +1141,140 @@ export default function TicketDetailPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Assign Tester Modal */}
+      {showTesterModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form onSubmit={handleAssignTesterSubmit} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <TestTube className="w-5 h-5 text-purple-600" />
+                <span>Assign Tester for Module Verification</span>
+              </h3>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Select QA / Tester User *</label>
+              <select
+                required
+                value={testedByIdState}
+                onChange={(e) => setTestedByIdState(e.target.value)}
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/40 bg-white font-bold text-slate-900"
+              >
+                <option value="">-- Choose User for Testing --</option>
+                {allUsers.map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role.replace('_', ' ')}) - {u.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Deployment Env</label>
+                <select
+                  value={selectedEnv}
+                  onChange={(e) => setSelectedEnv(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/40 bg-white font-bold text-slate-900"
+                >
+                  <option value="DEV">DEV (Development)</option>
+                  <option value="UAT">UAT (Staging/QA)</option>
+                  <option value="PROD">PROD (Production)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Branch / Commit</label>
+                <input
+                  type="text"
+                  value={branchNameState}
+                  onChange={(e) => setBranchNameState(e.target.value)}
+                  placeholder="e.g. release/v2.4"
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/40 font-mono text-purple-950 font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowTesterModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md"
+              >
+                Assign & Mark Pending Testing
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Submit Testing Verdict Modal */}
+      {showTestResultModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                {testPassedChoice ? (
+                  <Check className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-600" />
+                )}
+                <span>{testPassedChoice ? 'Pass Module Testing' : 'Fail Module Testing'}</span>
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {testPassedChoice
+                ? 'Confirming module test pass will allow managers or admins to mark the ticket as COMPLETED.'
+                : 'Failing module test will automatically revert ticket status to IN_PROGRESS and reassign back to the developer with your feedback.'}
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Tester Remarks / Feedback {testPassedChoice ? '(Optional)' : '(Required)'}
+              </label>
+              <textarea
+                rows={3}
+                required={!testPassedChoice}
+                value={testingFeedbackInput}
+                onChange={(e) => setTestingFeedbackInput(e.target.value)}
+                placeholder={
+                  testPassedChoice
+                    ? 'e.g. Verified fix on UAT environment. All test cases passed.'
+                    : 'e.g. Bug still reproduces when clicking submit button on UAT build...'
+                }
+                className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c16d18]/40 text-slate-900"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowTestResultModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmitTestingResult(testPassedChoice)}
+                className={`px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md ${
+                  testPassedChoice ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {testPassedChoice ? 'Confirm Test PASSED' : 'Confirm Test FAILED'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

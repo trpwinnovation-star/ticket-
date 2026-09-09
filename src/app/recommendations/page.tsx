@@ -374,12 +374,12 @@ export default function RecommendationsPage() {
         {/* Right Column: Recommendations Stream & Voting */}
         <div className="lg:col-span-2 space-y-6">
           {/* Status Tabs */}
-          <div className="flex flex-wrap bg-white p-2 rounded-2xl border border-slate-200 shadow-xs gap-1">
+          <div className="flex bg-white p-2 rounded-2xl border border-slate-200 shadow-xs gap-1 max-w-full overflow-x-auto no-scrollbar">
             {['ALL', 'SUBMITTED', 'UNDER_REVIEW', 'PLANNED', 'IN_DEVELOPMENT', 'IMPLEMENTED'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === tab
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === tab
                   ? 'bg-[#c16d18] text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -427,7 +427,7 @@ export default function RecommendationsPage() {
                       <h3 className="font-extrabold text-base text-slate-900">{rec.title}</h3>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
                       {(() => {
                         const hasUserVoted = Array.isArray(rec.votes)
                           ? rec.votes.some((v: any) => v.userId === currentUser?.id)

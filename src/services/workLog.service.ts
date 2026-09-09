@@ -7,6 +7,8 @@ export interface LogWorkHoursDTO {
   hoursSpent: number;
   description: string;
   workDate?: string;
+  environment?: string | null;
+  branchName?: string | null;
 }
 
 export class WorkLogService {
@@ -48,6 +50,8 @@ export class WorkLogService {
         hoursSpent: dto.hoursSpent,
         description: dto.description,
         workDate: dto.workDate ? new Date(dto.workDate) : new Date(),
+        environment: dto.environment || null,
+        branchName: dto.branchName || null,
       },
       include: {
         user: true,
@@ -55,10 +59,14 @@ export class WorkLogService {
       },
     });
 
-    // Update ticket status to IN_PROGRESS if ASSIGNED
+    // Update ticket status to IN_PROGRESS if ASSIGNED, and set active environment/branch if provided
+    const ticketDataToUpdate: any = { status: TicketStatus.IN_PROGRESS };
+    if (dto.environment) ticketDataToUpdate.environment = dto.environment;
+    if (dto.branchName) ticketDataToUpdate.branchName = dto.branchName;
+
     await prisma.ticket.update({
       where: { id: dto.ticketId },
-      data: { status: TicketStatus.IN_PROGRESS },
+      data: ticketDataToUpdate,
     });
 
     return { source: 'prisma_database', workLog };

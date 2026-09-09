@@ -60,24 +60,28 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const requests: Promise<any>[] = [
+      const [dataTickets, dataRecs, dataTeams] = await Promise.all([
         ticketApi.getAll(),
         recommendationApi.getAll(),
-        teamApi.getAdminMetrics(),
         teamApi.getTeams(),
-      ];
-
-      if (currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') {
-        requests.push(teamApi.getUsers());
-      }
-
-      const [dataTickets, dataRecs, dataAdmin, dataTeams, dataUsers] = await Promise.all(requests);
+      ]);
 
       if (dataTickets.tickets) setTickets(dataTickets.tickets);
       if (dataRecs.recommendations) setRecommendations(dataRecs.recommendations);
-      if (dataAdmin.metrics) setMetrics(dataAdmin.metrics);
       if (dataTeams.teams) setTeams(dataTeams.teams);
-      if (dataUsers && dataUsers.users) setUsers(dataUsers.users);
+
+      if (currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') {
+        try {
+          const [dataAdmin, dataUsers] = await Promise.all([
+            teamApi.getAdminMetrics(),
+            teamApi.getUsers(),
+          ]);
+          if (dataAdmin.metrics) setMetrics(dataAdmin.metrics);
+          if (dataUsers.users) setUsers(dataUsers.users);
+        } catch (e) {
+          console.error('Failed to fetch admin metrics:', e);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
     } finally {
@@ -87,7 +91,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-  }, [currentUser]);
+
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentUser, currentRole]);
 
   const handleApprove = async () => {
     if (!selectedTicket) return;
@@ -204,11 +212,11 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full sm:w-auto">
             {currentRole === 'SUPER_ADMIN' && (
               <Link
                 href="/admin"
-                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition-all"
               >
                 <Crown className="w-4 h-4 text-amber-300" />
                 <span>Super Admin Console</span>
@@ -216,14 +224,14 @@ export default function DashboardPage() {
             )}
             <Link
               href="/tickets/new"
-              className="px-4 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#c16d18]/30 transition-all hover:scale-105"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#c16d18] hover:bg-[#a35810] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#c16d18]/30 transition-all"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Raise New Ticket</span>
             </Link>
             <Link
               href="/recommendations"
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 border border-white/20 transition-all"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center gap-2 border border-white/20 transition-all"
             >
               <Lightbulb className="w-4 h-4 text-amber-300" />
               <span>Suggest Feature</span>
@@ -233,7 +241,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <TicketIcon className="w-6 h-6" />

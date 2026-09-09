@@ -95,6 +95,7 @@ export class AuthService {
       role: user.role,
       jobTitle: user.jobTitle || '',
       avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=c16d18&color=fff`,
+      teamId: user.teamId || null,
       createdAt: user.createdAt,
     };
 
@@ -151,6 +152,7 @@ export class AuthService {
         role: true,
         jobTitle: true,
         avatar: true,
+        teamId: true,
         createdAt: true,
       },
     });

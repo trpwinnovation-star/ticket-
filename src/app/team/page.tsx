@@ -176,13 +176,13 @@ export default function TeamPage() {
   const isITSpecialist = currentUser?.role === 'IT_SOFTWARE';
   const activeAssignedTickets = tickets.filter(
     (t) =>
-      (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
-      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED'].includes(t.status)
+      (t.assignedToId === currentUser?.id || t.testedById === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
+      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED', 'PENDING_APPROVAL'].includes(t.status)
   );
 
   const pendingTestingTickets = tickets.filter(
     (t) =>
-      (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
+      (t.assignedToId === currentUser?.id || t.testedById === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
       t.status === 'PENDING_TESTING'
   );
 
@@ -235,10 +235,10 @@ export default function TeamPage() {
                   <span>My Assigned Technical Work Desk</span>
                 </h2>
 
-                <div className="flex items-center bg-slate-200/70 p-1 rounded-xl border border-slate-300/60">
+                <div className="flex items-center bg-slate-200/70 p-1 rounded-xl border border-slate-300/60 w-full sm:w-auto">
                   <button
                     onClick={() => setWorkDeskTab('ACTIVE')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'ACTIVE'
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${workDeskTab === 'ACTIVE'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-slate-700 hover:text-slate-900'
                       }`}
@@ -247,7 +247,7 @@ export default function TeamPage() {
                   </button>
                   <button
                     onClick={() => setWorkDeskTab('PENDING_TESTING')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'PENDING_TESTING'
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${workDeskTab === 'PENDING_TESTING'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-slate-700 hover:text-slate-900'
                       }`}
@@ -282,7 +282,7 @@ export default function TeamPage() {
                     return (
                       <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
                             {!isSeen ? (
                               <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse">
@@ -296,9 +296,31 @@ export default function TeamPage() {
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
                               {t.status.replace('_', ' ')}
                             </span>
+                            {t.environment && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                                t.environment === 'PROD'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : t.environment === 'UAT'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}>
+                                Env: {t.environment}
+                              </span>
+                            )}
+                            {t.testingStatus && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                                t.testingStatus === 'PASSED'
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                  : t.testingStatus === 'FAILED'
+                                  ? 'bg-red-100 text-red-900 border-red-300'
+                                  : 'bg-amber-100 text-amber-900 border-amber-300'
+                              }`}>
+                                Test: {t.testingStatus}
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
-                          <p className="text-xs text-slate-500">{t.websiteName} • {t.module}</p>
+                          <p className="text-xs text-slate-500">{t.websiteName} • {t.module} {t.branchName ? `• Branch: ${t.branchName}` : ''}</p>
                         </div>
 
                         <Link

@@ -57,6 +57,7 @@ model User {
   team                    Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdTickets          Ticket[]             @relation("TicketCreator")
   assignedTickets         Ticket[]             @relation("TicketAssignee")
+  testedTickets           Ticket[]             @relation("TicketTester")
   comments                Comment[]
   workLogs                WorkLog[]
   recommendations         Recommendation[]
@@ -95,6 +96,14 @@ model Ticket {
   assignedToId String?
   assignedTo   User?   @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  testedById String?
+  testedBy   User?   @relation("TicketTester", fields: [testedById], references: [id], onDelete: SetNull)
+
+  testingStatus   String? // "PENDING", "PASSED", "FAILED"
+  testingFeedback String? // Feedback from tester when passing or failing test
+  environment     String? // Target environment e.g., "DEV", "UAT", "PROD"
+  branchName      String? // Development branch / commit reference
+
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
@@ -129,6 +138,8 @@ model WorkLog {
   hoursSpent  Float    // e.g., 2.5
   workDate    DateTime @default(now())
   description String
+  environment String?  // "DEV", "UAT", "PROD"
+  branchName  String?  // e.g., "feature/fix-auth"
   createdAt   DateTime @default(now())
 }
 

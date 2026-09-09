@@ -58,4 +58,16 @@ export const ticketApi = {
 
   addComment: (id: string, content: string, isInternal: boolean, authorId?: string) => 
     apiClient(`/api/v1/tickets/${id}/comments`, { method: 'POST', body: { content, isInternal, authorId } }),
+
+  assignTester: (id: string, payload: { testedById?: string | null; environment?: string | null; branchName?: string | null }) =>
+    apiClient(`/api/v1/tickets/${id}/assign-tester`, { method: 'POST', body: payload }),
+
+  submitTesting: (id: string, payload: { passed: boolean; feedback?: string }) =>
+    apiClient(`/api/v1/tickets/${id}/submit-testing`, { method: 'POST', body: payload }),
+
+  completeTicket: (id: string) =>
+    apiClient(`/api/v1/tickets/${id}/complete`, { method: 'POST' }),
+
+  updateEnvironment: (id: string, payload: { environment?: string | null; branchName?: string | null }) =>
+    apiClient(`/api/v1/tickets/${id}/environment`, { method: 'PATCH', body: payload }),
 };
