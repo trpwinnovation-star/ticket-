@@ -3,7 +3,7 @@ import { TicketStatus, TicketPriority } from '@prisma/client';
 import { NotificationService } from './notification.service';
 import crypto from 'crypto';
 
-type Actor = { id: string; role: 'GUEST_USER' | 'IT_SOFTWARE' | 'MANAGER' | 'SUPER_ADMIN'; teamId?: string | null; };
+type Actor = { id: string; role: 'GUEST_USER' | 'IT_SOFTWARE' | 'MANAGER' | 'SUPER_ADMIN'; teamId?: string | null; name?: string; };
 
 function canAccessTicket(ticket: { createdById: string; assignedToId: string | null; testedById?: string | null; teamId: string | null }, actor: Actor) {
   return actor.role === 'SUPER_ADMIN' || actor.role === 'MANAGER' || ticket.createdById === actor.id || ticket.assignedToId === actor.id || ticket.testedById === actor.id || (Boolean(ticket.teamId) && ticket.teamId === actor.teamId);
@@ -26,6 +26,7 @@ export interface ApproveTicketDTO {
   teamId?: string;
   priority?: TicketPriority;
   targetClosureDate?: string | Date;
+  actor?: Actor;
 }
 
 export interface RejectTicketDTO {
@@ -212,7 +213,10 @@ export class TicketService {
         assignedToId: dto.assignedToId || undefined,
         teamId: dto.teamId || undefined,
         targetClosureDate: dto.targetClosureDate ? new Date(dto.targetClosureDate) : undefined,
-      },
+        approvedAt: new Date(),
+        approvedByRole: dto.actor?.role || 'MANAGER',
+        approvedByName: dto.actor?.name || 'Manager',
+      } as any,
       include: {
         createdBy: true,
         assignedTo: true,
@@ -267,7 +271,10 @@ export class TicketService {
    * Update Technical Status (Level 2 IT Team action)
    */
   static async updateStatus(ticketId: string, status: TicketStatus, actor?: Actor) {
-    const current = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    const current = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { team: { include: { members: true } } },
+    });
     if (!current) throw new Error('Ticket not found.');
     if (actor?.role === 'IT_SOFTWARE' && current.assignedToId !== actor.id && (!current.teamId || current.teamId !== actor.teamId)) {
       throw new Error('You are not assigned to this ticket.');
@@ -279,24 +286,108 @@ export class TicketService {
     }
 
     const isClosed = isRestrictedStatus;
+    const isPreviousClosed = ['RESOLVED', 'COMPLETED', 'CLOSED'].includes(current.status);
+
+    const statusData: any = {
+      status,
+      closedAt: isClosed ? (current.closedAt || new Date()) : (isPreviousClosed ? null : current.closedAt),
+    };
+    if ((status === TicketStatus.APPROVED || status === TicketStatus.ASSIGNED) && !(current as any).approvedAt) {
+      statusData.approvedAt = new Date();
+      statusData.approvedByRole = actor?.role || 'MANAGER';
+      statusData.approvedByName = actor?.name || 'Manager';
+    }
+
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
-      data: {
-        status,
-        closedAt: isClosed ? new Date() : undefined,
+      data: statusData,
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: { include: { members: true } },
       },
     });
 
-    try {
-      await NotificationService.notifyStakeholders({
-        recipientIds: [updated.createdById, updated.assignedToId],
-        title: `Status Update on Ticket ${updated.ticketNumber}`,
-        message: `Ticket status has been changed to ${status.replace('_', ' ')}.`,
-        type: status === 'NEED_MORE_DETAILS' ? 'NEED_INFO' : 'STATUS_CHANGE',
-        link: `/tickets/${updated.id}`,
-      });
-    } catch (e) {
-      console.warn('Status update notification failed:', e);
+    const actorLabel = actor?.name ? `${actor.name} (${actor.role.replace('_', ' ')})` : 'System';
+
+    // Log reopen audit comment and broadcast alert if reopened from closed/completed
+    if (isPreviousClosed && !isClosed) {
+      const closedDateStr = current.closedAt
+        ? new Date(current.closedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : 'earlier';
+      const reopenMsg = `TICKET REOPENED: This ticket was previously marked as ${current.status} on ${closedDateStr} and has now been REOPENED by ${actorLabel} to status "${status.replace('_', ' ')}".`;
+
+      if (actor?.id) {
+        try {
+          await prisma.comment.create({
+            data: {
+              ticketId: updated.id,
+              authorId: actor.id,
+              content: reopenMsg,
+              isInternal: false,
+            },
+          });
+        } catch (e) {
+          console.warn('Failed to record reopen comment:', e);
+        }
+      }
+
+      const teamMemberIds = updated.team?.members?.map((m: any) => m.id) || [];
+      try {
+        await NotificationService.notifyStakeholders({
+          recipientIds: [updated.createdById, updated.assignedToId, updated.testedById, ...teamMemberIds],
+          excludeUserId: actor?.id,
+          title: `⚠️ Ticket ${updated.ticketNumber} Reopened`,
+          message: `Ticket was previously ${current.status} and has been REOPENED to ${status.replace('_', ' ')} by ${actor?.name || 'Staff'}.`,
+          type: 'STATUS_CHANGE',
+          link: `/tickets/${updated.id}`,
+        });
+      } catch (e) {
+        console.warn('Reopen notification failed:', e);
+      }
+    } else if (isClosed && !isPreviousClosed) {
+      // Log completion audit comment
+      const completeMsg = `✅ TICKET MARKED ${status}: Marked as ${status} by ${actorLabel}.`;
+      if (actor?.id) {
+        try {
+          await prisma.comment.create({
+            data: {
+              ticketId: updated.id,
+              authorId: actor.id,
+              content: completeMsg,
+              isInternal: false,
+            },
+          });
+        } catch (e) {
+          console.warn('Failed to record completion comment:', e);
+        }
+      }
+
+      try {
+        await NotificationService.notifyStakeholders({
+          recipientIds: [updated.createdById, updated.assignedToId, updated.testedById],
+          excludeUserId: actor?.id,
+          title: `Ticket ${updated.ticketNumber} ${status}`,
+          message: `Ticket status has been set to ${status.replace('_', ' ')} by ${actor?.name || 'Manager'}.`,
+          type: 'STATUS_CHANGE',
+          link: `/tickets/${updated.id}`,
+        });
+      } catch (e) {
+        console.warn('Close notification failed:', e);
+      }
+    } else {
+      try {
+        await NotificationService.notifyStakeholders({
+          recipientIds: [updated.createdById, updated.assignedToId],
+          title: `Status Update on Ticket ${updated.ticketNumber}`,
+          message: `Ticket status has been changed to ${status.replace('_', ' ')}.`,
+          type: status === 'NEED_MORE_DETAILS' ? 'NEED_INFO' : 'STATUS_CHANGE',
+          link: `/tickets/${updated.id}`,
+        });
+      } catch (e) {
+        console.warn('Status update notification failed:', e);
+      }
     }
 
     return { source: 'prisma_database', ticket: updated };
@@ -310,7 +401,8 @@ export class TicketService {
     assignedToId?: string | null,
     teamId?: string | null,
     targetClosureDate?: string | Date | null,
-    priority?: TicketPriority
+    priority?: TicketPriority,
+    actor?: Actor
   ) {
     let finalTeamId = teamId || null;
     let finalAssigneeId = assignedToId || null;
@@ -329,11 +421,18 @@ export class TicketService {
       }
     }
 
+    const currentTicket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+
     const dataObj: any = {
       assignedToId: finalAssigneeId,
       teamId: finalTeamId,
       status: (finalAssigneeId || finalTeamId) ? TicketStatus.ASSIGNED : TicketStatus.APPROVED,
     };
+    if (currentTicket && !(currentTicket as any).approvedAt) {
+      dataObj.approvedAt = new Date();
+      dataObj.approvedByRole = actor?.role || 'MANAGER';
+      dataObj.approvedByName = actor?.name || 'Manager';
+    }
     if (targetClosureDate !== undefined) {
       dataObj.targetClosureDate = targetClosureDate ? new Date(targetClosureDate) : null;
     }
@@ -618,17 +717,103 @@ export class TicketService {
       },
     });
 
+    const actorName = actor?.name || 'Management';
+    // Create system audit comment
+    try {
+      await prisma.comment.create({
+        data: {
+          ticketId: updated.id,
+          authorId: actor.id,
+          content: `✅ TICKET MARKED COMPLETED: Ticket verified and officially marked as COMPLETED by ${actorName} (${actor.role.replace('_', ' ')}).`,
+          isInternal: false,
+        },
+      });
+    } catch (e) {
+      console.warn('Failed to record complete comment:', e);
+    }
+
     try {
       await NotificationService.notifyStakeholders({
         recipientIds: [updated.createdById, updated.assignedToId, updated.testedById],
         excludeUserId: actor.id,
         title: `Ticket ${updated.ticketNumber} Completed`,
-        message: `Ticket has been verified and marked as COMPLETED by management.`,
+        message: `Ticket has been verified and marked as COMPLETED by ${actorName}.`,
         type: 'STATUS_CHANGE',
         link: `/tickets/${updated.id}`,
       });
     } catch (e) {
       console.warn('Completion notification failed:', e);
+    }
+
+    return { source: 'prisma_database', ticket: updated };
+  }
+
+  /**
+   * Reopen Ticket after it was marked Completed/Resolved/Closed
+   */
+  static async reopenTicket(ticketId: string, reason: string | undefined, actor: Actor) {
+    const current = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { team: { include: { members: true } } },
+    });
+    if (!current) throw new Error('Ticket not found.');
+
+    if (actor.role === 'GUEST_USER' && current.createdById !== actor.id) {
+      throw new Error('Only the ticket creator or IT staff / managers can reopen this ticket.');
+    }
+
+    const prevStatus = current.status;
+    const closedDateStr = current.closedAt
+      ? new Date(current.closedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : 'earlier';
+
+    const newStatus = current.assignedToId ? TicketStatus.IN_PROGRESS : (current.teamId ? TicketStatus.ASSIGNED : TicketStatus.APPROVED);
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: newStatus,
+        closedAt: null,
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        testedBy: true,
+        team: { include: { members: true } },
+      },
+    });
+
+    const actorName = actor?.name || 'Staff';
+    const actorLabel = `${actorName} (${actor.role.replace('_', ' ')})`;
+    const reopenMsg = reason?.trim()
+      ? `TICKET REOPENED: This ticket was previously marked as ${prevStatus} on ${closedDateStr} and has now been REOPENED by ${actorLabel}.\nReason: "${reason.trim()}"`
+      : `TICKET REOPENED: This ticket was previously marked as ${prevStatus} on ${closedDateStr} and has now been REOPENED by ${actorLabel}.`;
+
+    try {
+      await prisma.comment.create({
+        data: {
+          ticketId: updated.id,
+          authorId: actor.id,
+          content: reopenMsg,
+          isInternal: false,
+        },
+      });
+    } catch (e) {
+      console.warn('Failed to record reopen comment:', e);
+    }
+
+    const teamMemberIds = updated.team?.members?.map((m: any) => m.id) || [];
+    try {
+      await NotificationService.notifyStakeholders({
+        recipientIds: [updated.createdById, updated.assignedToId, updated.testedById, ...teamMemberIds],
+        excludeUserId: actor.id,
+        title: `⚠️ Ticket ${updated.ticketNumber} Reopened`,
+        message: `Ticket was previously ${prevStatus} and has been REOPENED by ${actorName}.${reason ? ` Reason: ${reason}` : ''}`,
+        type: 'STATUS_CHANGE',
+        link: `/tickets/${updated.id}`,
+      });
+    } catch (e) {
+      console.warn('Reopen notification failed:', e);
     }
 
     return { source: 'prisma_database', ticket: updated };

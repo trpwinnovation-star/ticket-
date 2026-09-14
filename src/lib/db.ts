@@ -110,6 +110,11 @@ export interface Ticket {
   attachments: Attachment[];
   comments: Comment[];
   workLogs: WorkLog[];
+  targetClosureDate?: string | null;
+  approvedAt?: string | null;
+  approvedByRole?: string | null;
+  approvedByName?: string | null;
+  closedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

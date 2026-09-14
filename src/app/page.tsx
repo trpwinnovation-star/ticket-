@@ -23,7 +23,9 @@ import {
   ThumbsUp,
   Building,
   LogIn,
+  Scale,
 } from 'lucide-react';
+import TATBadge from '@/components/TATBadge';
 
 export default function DashboardPage() {
   const { currentUser, isAuthenticated, getAuthHeaders } = useAuth();
@@ -47,14 +49,42 @@ export default function DashboardPage() {
   const [seenTicketIds, setSeenTicketIds] = useState<Set<string>>(new Set());
   const [workDeskTab, setWorkDeskTab] = useState<'ACTIVE' | 'PENDING_TESTING'>('ACTIVE');
 
-  useEffect(() => {
+  const syncSeenTickets = () => {
     if (currentUser?.id) {
       try {
         const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
         const list = JSON.parse(raw);
         setSeenTicketIds(new Set(list));
-      } catch (e) { }
+      } catch (e) {
+        setSeenTicketIds(new Set());
+      }
     }
+  };
+
+  const markAsSeen = (ticketId: string) => {
+    if (currentUser?.id && ticketId) {
+      try {
+        const key = `seen_tickets_${currentUser.id}`;
+        const raw = localStorage.getItem(key) || '[]';
+        const list = JSON.parse(raw);
+        if (!list.includes(ticketId)) {
+          list.push(ticketId);
+          localStorage.setItem(key, JSON.stringify(list));
+        }
+        setSeenTicketIds(new Set(list));
+      } catch (e) {}
+    }
+  };
+
+  useEffect(() => {
+    syncSeenTickets();
+    const handleSync = () => syncSeenTickets();
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, [currentUser]);
 
   const fetchData = async () => {
@@ -159,12 +189,27 @@ export default function DashboardPage() {
   };
 
   const pendingTickets = tickets.filter((t) => t.status === 'PENDING_APPROVAL' || t.status === 'SUBMITTED');
+  const acceptedTickets = tickets.filter((t) =>
+    ['APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'PENDING_TESTING', 'RESOLVED', 'COMPLETED', 'CLOSED'].includes(t.status)
+  );
+  const rejectedTickets = tickets.filter((t) => t.status === 'REJECTED');
+
+  const acceptedCount =
+    metrics.acceptedTickets !== undefined
+      ? metrics.acceptedTickets
+      : acceptedTickets.length;
+
+  const rejectedCount =
+    metrics.rejectedTickets !== undefined
+      ? metrics.rejectedTickets
+      : rejectedTickets.length;
+
   const mySubmittedTickets = tickets.filter((t) => t.createdById === currentUser?.id);
 
   const activeAssignedTickets = tickets.filter(
     (t) =>
       (t.assignedToId === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
-      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED'].includes(t.status)
+      (t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS')
   );
 
   const pendingTestingTickets = tickets.filter(
@@ -174,6 +219,23 @@ export default function DashboardPage() {
   );
 
   const myAssignedTickets = workDeskTab === 'ACTIVE' ? activeAssignedTickets : pendingTestingTickets;
+
+  const unreadAssignedTickets = myAssignedTickets
+    .filter((t) => !seenTicketIds.has(t.id))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const viewedAssignedTickets = myAssignedTickets
+    .filter((t) => {
+      if (!seenTicketIds.has(t.id)) return false;
+      if (workDeskTab === 'ACTIVE') {
+        return t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS';
+      }
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const activeUnreadCount = activeAssignedTickets.filter((t) => !seenTicketIds.has(t.id)).length;
+  const testingUnreadCount = pendingTestingTickets.filter((t) => !seenTicketIds.has(t.id)).length;
 
   if (!isAuthenticated) {
     return null;
@@ -279,16 +341,35 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Building className="w-6 h-6" />
+        {(currentRole === 'MANAGER' || currentRole === 'SUPER_ADMIN') ? (
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <Scale className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Accepted / Rejected</p>
+              <h3 className="text-2xl font-black text-slate-900">
+                <span className="text-emerald-600">{acceptedCount}</span>
+                <span className="text-slate-400 mx-1">/</span>
+                <span className="text-rose-600">{rejectedCount}</span>
+              </h3>
+              <p className="text-[11px] text-slate-400 font-medium">
+                <span className="text-emerald-600 font-semibold">{acceptedCount} accepted</span> · <span className="text-rose-600 font-semibold">{rejectedCount} rejected</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Teams</p>
-            <h3 className="text-2xl font-black text-slate-900">{metrics.totalTeams || teams.length}</h3>
-            <p className="text-[11px] text-slate-400 font-medium">Active Teams</p>
+        ) : (
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <Building className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Teams</p>
+              <h3 className="text-2xl font-black text-slate-900">{metrics.totalTeams || teams.length}</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Active Teams</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Main Perspective Workspace */}
@@ -320,13 +401,19 @@ export default function DashboardPage() {
                   <p className="text-2xl font-black text-white">
                     {metrics.approvedTickets !== undefined
                       ? metrics.approvedTickets
-                      : tickets.filter((t) => ['APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'COMPLETED', 'CLOSED'].includes(t.status)).length}
+                      : acceptedCount}
                   </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">
-                  <p className="text-[10px] uppercase font-bold text-purple-200">
-                    Total Teams</p>
-                  <p className="text-2xl font-black text-white">{metrics.totalTeams || 2}</p>
+                  <p className="text-[10px] uppercase font-bold text-purple-200">Accepted / Rejected</p>
+                  <p className="text-2xl font-black text-white">
+                    <span className="text-emerald-300">{acceptedCount}</span>
+                    <span className="text-purple-200 mx-1">/</span>
+                    <span className="text-rose-300">{rejectedCount}</span>
+                  </p>
+                  <p className="text-[10px] text-purple-100/80 font-medium mt-0.5">
+                    {acceptedCount} accepted · {rejectedCount} rejected
+                  </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl border border-white/10">
                   <p className="text-[10px] uppercase font-bold text-purple-200">Registered Platform Users</p>
@@ -384,7 +471,7 @@ export default function DashboardPage() {
                           onClick={() => { setSelectedTicket(t); setAssigneeId(''); setShowApproveModal(true); }}
                           className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
                         >
-                          Approve & Assign
+                          Accept & Assign
                         </button>
                         <button
                           onClick={() => { setSelectedTicket(t); setShowRejectModal(true); }}
@@ -413,21 +500,31 @@ export default function DashboardPage() {
                   <div className="flex items-center bg-blue-100/70 p-1 rounded-xl border border-blue-200">
                     <button
                       onClick={() => setWorkDeskTab('ACTIVE')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'ACTIVE'
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${workDeskTab === 'ACTIVE'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-blue-900 hover:text-blue-950'
                         }`}
                     >
-                      Active Work ({activeAssignedTickets.length})
+                      <span>Active Work ({activeAssignedTickets.length})</span>
+                      {activeUnreadCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                          {activeUnreadCount} new
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => setWorkDeskTab('PENDING_TESTING')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${workDeskTab === 'PENDING_TESTING'
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${workDeskTab === 'PENDING_TESTING'
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-blue-900 hover:text-blue-950'
                         }`}
                     >
-                      In Testing ({pendingTestingTickets.length})
+                      <span>In Testing ({pendingTestingTickets.length})</span>
+                      {testingUnreadCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                          {testingUnreadCount} new
+                        </span>
+                      )}
                     </button>
                   </div>
 
@@ -438,51 +535,103 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="divide-y divide-slate-100">
-                {myAssignedTickets.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs font-medium">
-                    {workDeskTab === 'ACTIVE'
-                      ? 'No active tickets currently assigned to you.'
-                      : 'No tickets currently pending testing.'}
-                  </div>
-                ) : (
-                  myAssignedTickets.map((t) => {
-                    const isSeen = seenTicketIds.has(t.id);
-                    return (
-                      <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-500">{t.ticketNumber}</span>
-                            {!isSeen ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse">
-                                NEW UNREAD
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
-                                VIEWED
-                              </span>
-                            )}
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
-                              {t.status.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
+              {myAssignedTickets.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs font-medium">
+                  {workDeskTab === 'ACTIVE'
+                    ? 'No active tickets currently assigned to you.'
+                    : 'No tickets currently pending testing.'}
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {/* Unread Section - Always on Top */}
+                  {unreadAssignedTickets.length > 0 && (
+                    <div>
+                      <div className="px-5 py-2.5 bg-emerald-50/70 border-b border-emerald-200/80 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                          </span>
+                          <span className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                            Pending Unread Tickets ({unreadAssignedTickets.length})
+                          </span>
                         </div>
-
-                        <Link
-                          href={`/tickets/${t.id}`}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${!isSeen
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                          {!isSeen ? 'Open New Ticket' : 'View Ticket Details'}
-                        </Link>
+                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                          Unread
+                        </span>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                      <div className="divide-y divide-emerald-100/60 bg-emerald-50/15">
+                        {unreadAssignedTickets.map((t) => (
+                          <div key={t.id} className="p-5 hover:bg-emerald-50/40 transition-colors flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-slate-500">{t.ticketNumber}</span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                                  NEW UNREAD
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                                  {t.status.replace('_', ' ')}
+                                </span>
+                                <TATBadge ticket={t} size="xs" />
+                              </div>
+                              <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
+                            </div>
+
+                            <Link
+                              href={`/tickets/${t.id}`}
+                              onClick={() => markAsSeen(t.id)}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
+                            >
+                              Open Ticket
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Viewed Section - Always Below Unread Tickets */}
+                  {viewedAssignedTickets.length > 0 && (
+                    <div>
+                      <div className="px-5 py-2.5 bg-slate-100/80 border-t border-b border-slate-200 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Open & In-Progress Tickets ({viewedAssignedTickets.length})
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Viewed • Open or In-Progress
+                        </span>
+                      </div>
+                      <div className="divide-y divide-slate-100 bg-white">
+                        {viewedAssignedTickets.map((t) => (
+                          <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-slate-500">{t.ticketNumber}</span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
+                                  VIEWED
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                                  {t.status.replace('_', ' ')}
+                                </span>
+                                <TATBadge ticket={t} size="xs" />
+                              </div>
+                              <h3 className="font-bold text-sm text-slate-700">{t.title}</h3>
+                            </div>
+
+                            <Link
+                              href={`/tickets/${t.id}`}
+                              onClick={() => markAsSeen(t.id)}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                            >
+                              View Ticket Details
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -516,6 +665,7 @@ export default function DashboardPage() {
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
                           {t.status.replace('_', ' ')}
                         </span>
+                        <TATBadge ticket={t} size="xs" />
                       </div>
                       <h3 className="font-bold text-sm text-slate-900">
                         <Link href={`/tickets/${t.id}`} className="hover:text-[#c16d18] transition-colors">

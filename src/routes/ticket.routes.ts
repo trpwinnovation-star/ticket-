@@ -14,6 +14,7 @@ router.post('/:id/assign', requireRole('MANAGER', 'SUPER_ADMIN'), TicketControll
 router.post('/:id/assign-tester', requireRole('IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.assignTester);
 router.post('/:id/submit-testing', TicketController.submitTesting);
 router.post('/:id/complete', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.complete);
+router.post('/:id/reopen', requireRole('GUEST_USER', 'IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.reopen);
 router.patch('/:id/environment', requireRole('IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.updateEnvironment);
 router.patch('/:id/status', requireRole('IT_SOFTWARE', 'MANAGER', 'SUPER_ADMIN'), TicketController.updateStatus);
 router.patch('/:id/priority', requireRole('MANAGER', 'SUPER_ADMIN'), TicketController.updatePriority);

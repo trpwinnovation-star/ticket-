@@ -30,6 +30,7 @@ import {
   Check,
   XCircle,
   CheckCheck,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function TicketDetailPage() {
@@ -78,6 +79,9 @@ export default function TicketDetailPage() {
 
   // Edit Ticket Form State
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [showReopenModal, setShowReopenModal] = useState<boolean>(false);
+  const [reopenReason, setReopenReason] = useState<string>('');
+  const [reopenLoading, setReopenLoading] = useState<boolean>(false);
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
   const [editCategory, setEditCategory] = useState<string>('Software Bug');
@@ -167,7 +171,7 @@ export default function TicketDetailPage() {
               list.push(ticketId);
               localStorage.setItem(key, JSON.stringify(list));
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     } catch (err) {
@@ -240,6 +244,22 @@ export default function TicketDetailPage() {
       fetchTicket();
     } catch (e) {
       console.error('Complete ticket failed:', e);
+    }
+  };
+
+  const handleReopenTicket = async () => {
+    if (!reopenReason.trim()) return;
+    setReopenLoading(true);
+    try {
+      await ticketApi.reopenTicket(ticketId, reopenReason);
+      setShowReopenModal(false);
+      setReopenReason('');
+      fetchTicket();
+    } catch (e: any) {
+      console.error('Reopen ticket failed:', e);
+      alert('Failed to reopen ticket: ' + (e.message || 'Error occurred'));
+    } finally {
+      setReopenLoading(false);
     }
   };
 
@@ -411,6 +431,25 @@ export default function TicketDetailPage() {
     );
   }
 
+  const isClosedStatus = ticket && ['RESOLVED', 'COMPLETED', 'CLOSED'].includes(ticket.status);
+  const hasReopenHistory = ticket?.comments?.some((c: any) =>
+    c.content && c.content.includes('TICKET REOPENED')
+  );
+  const isReopenedActive = hasReopenHistory && !isClosedStatus;
+  const latestReopenComment = ticket?.comments
+    ?.slice()
+    ?.reverse()
+    ?.find((c: any) => c.content && c.content.includes('TICKET REOPENED'));
+
+  const canReopenTicket =
+    ticket &&
+    isClosedStatus &&
+    (currentRole === 'MANAGER' ||
+      currentRole === 'SUPER_ADMIN' ||
+      currentRole === 'IT_SOFTWARE' ||
+      currentUser?.id === ticket.createdById ||
+      currentUser?.id === ticket.assignedToId);
+
   const canEditTicket =
     ticket &&
     ((currentUser?.id === ticket.createdById && !['RESOLVED', 'COMPLETED', 'CLOSED'].includes(ticket.status)) ||
@@ -491,7 +530,7 @@ export default function TicketDetailPage() {
               <option value="HIGH">High Priority</option>
               <option value="URGENT">Urgent Priority</option>
             </select>
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            {/* <div className="flex items-center gap-1.5 w-full sm:w-auto">
               <span className="text-[11px] font-bold text-amber-900 shrink-0">Target Closure:</span>
               <input
                 type="date"
@@ -499,13 +538,13 @@ export default function TicketDetailPage() {
                 onChange={(e) => setTargetClosureDate(e.target.value)}
                 className="w-full sm:w-auto px-2 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
               />
-            </div>
+            </div> */}
             <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
               <button
                 onClick={handleApprove}
                 className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs"
               >
-                Approve & Assign
+                Accept & Assign
               </button>
               <button
                 onClick={() => setShowRejectModal(true)}
@@ -535,13 +574,12 @@ export default function TicketDetailPage() {
                 </span>
 
                 {ticket.environment && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${
-                    ticket.environment === 'PROD'
-                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                      : ticket.environment === 'UAT'
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${ticket.environment === 'PROD'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : ticket.environment === 'UAT'
                       ? 'bg-purple-100 text-purple-900 border-purple-300'
                       : 'bg-blue-100 text-blue-900 border-blue-300'
-                  }`}>
+                    }`}>
                     <Server className="w-3 h-3" />
                     <span>Env: {ticket.environment}</span>
                   </span>
@@ -555,13 +593,12 @@ export default function TicketDetailPage() {
                 )}
 
                 {ticket.testingStatus && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${
-                    ticket.testingStatus === 'PASSED'
-                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                      : ticket.testingStatus === 'FAILED'
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 ${ticket.testingStatus === 'PASSED'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : ticket.testingStatus === 'FAILED'
                       ? 'bg-red-100 text-red-900 border-red-300'
                       : 'bg-amber-100 text-amber-900 border-amber-300'
-                  }`}>
+                    }`}>
                     <TestTube className="w-3 h-3" />
                     <span>Test: {ticket.testingStatus}</span>
                   </span>
@@ -573,18 +610,60 @@ export default function TicketDetailPage() {
                     <span>Assigned Team: {ticket.team.name}</span>
                   </span>
                 )}
+
+                {hasReopenHistory && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1">
+                    <RotateCcw className="w-3 h-3 text-purple-600" />
+                    <span>Lifecycle: Reopened</span>
+                  </span>
+                )}
               </div>
 
-              {canEditTicket && (
-                <button
-                  onClick={openEditModal}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Edit Ticket Details</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {canReopenTicket && (
+                  <button
+                    onClick={() => {
+                      setReopenReason('');
+                      setShowReopenModal(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reopen Ticket</span>
+                  </button>
+                )}
+
+                {canEditTicket && (
+                  <button
+                    onClick={openEditModal}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    <span>Edit Ticket Details</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Reopened Alert Banner for IT Team, Managers & Users */}
+            {isReopenedActive && (
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 shadow-sm flex items-start gap-3">
+                {/* <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <RotateCcw className="w-4 h-4" />
+                </div> */}
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-extrabold text-amber-950 text-xs uppercase tracking-wider">
+                      Notice: Ticket Reopened After Being Completed
+                    </h4>
+
+                  </div>
+                  <p className="text-xs text-amber-900 font-semibold leading-relaxed whitespace-pre-line">
+                    {latestReopenComment?.content?.replace(/^🔁\s*/, '')}
+                  </p>
+
+                </div>
+              </div>
+            )}
 
             <h1 className="text-xl font-extrabold text-slate-900 leading-tight">{ticket.title}</h1>
 
@@ -592,34 +671,31 @@ export default function TicketDetailPage() {
 
             {/* Module Verification & QA Testing Panel */}
             {(ticket.status === 'PENDING_TESTING' || ticket.testingStatus || ticket.testedById) && (
-              <div className={`p-5 rounded-2xl border shadow-xs space-y-4 ${
-                ticket.testingStatus === 'PASSED'
-                  ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                  : ticket.testingStatus === 'FAILED'
+              <div className={`p-5 rounded-2xl border shadow-xs space-y-4 ${ticket.testingStatus === 'PASSED'
+                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                : ticket.testingStatus === 'FAILED'
                   ? 'bg-red-50/80 border-red-200 text-red-950'
                   : 'bg-amber-50/80 border-amber-200 text-amber-950'
-              }`}>
+                }`}>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs ${
-                      ticket.testingStatus === 'PASSED'
-                        ? 'bg-emerald-600'
-                        : ticket.testingStatus === 'FAILED'
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs ${ticket.testingStatus === 'PASSED'
+                      ? 'bg-emerald-600'
+                      : ticket.testingStatus === 'FAILED'
                         ? 'bg-red-600'
                         : 'bg-amber-600'
-                    }`}>
+                      }`}>
                       <TestTube className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                         <span>Module Verification & QA Testing</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          ticket.testingStatus === 'PASSED'
-                            ? 'bg-emerald-200 text-emerald-900'
-                            : ticket.testingStatus === 'FAILED'
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${ticket.testingStatus === 'PASSED'
+                          ? 'bg-emerald-200 text-emerald-900'
+                          : ticket.testingStatus === 'FAILED'
                             ? 'bg-red-200 text-red-900'
                             : 'bg-amber-200 text-amber-900'
-                        }`}>
+                          }`}>
                           {ticket.testingStatus || 'PENDING'}
                         </span>
                       </h3>
@@ -654,6 +730,19 @@ export default function TicketDetailPage() {
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Mark Ticket as COMPLETED</span>
+                      </button>
+                    )}
+
+                    {ticket.status === 'COMPLETED' && canReopenTicket && (
+                      <button
+                        onClick={() => {
+                          setReopenReason('');
+                          setShowReopenModal(true);
+                        }}
+                        className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Reopen Ticket</span>
                       </button>
                     )}
                   </div>
@@ -771,13 +860,12 @@ export default function TicketDetailPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-slate-800">{log.user?.name || 'IT Staff'}</span>
                         {log.environment && (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
-                            log.environment === 'PROD'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : log.environment === 'UAT'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${log.environment === 'PROD'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : log.environment === 'UAT'
                               ? 'bg-purple-50 text-purple-700 border-purple-200'
                               : 'bg-blue-50 text-blue-700 border-blue-200'
-                          }`}>
+                            }`}>
                             Env: {log.environment}
                           </span>
                         )}
@@ -866,34 +954,87 @@ export default function TicketDetailPage() {
               ) : (
                 ticket.comments
                   .filter((c: any) => !c.isInternal || currentRole !== 'GUEST_USER')
-                  .map((comment: any) => (
-                    <div
-                      key={comment.id}
-                      className={`p-4 rounded-xl border space-y-1.5 text-xs transition-all ${comment.isInternal
-                        ? 'border-purple-200 bg-purple-50/60 text-purple-950 shadow-xs'
-                        : 'border-slate-200 bg-slate-50/70 text-slate-800'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-900">{comment.author?.name || 'User'}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-200 text-slate-700">
-                            {comment.author?.role?.replace('_', ' ') || 'User'}
-                          </span>
-                          {comment.isInternal && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-200 text-purple-900 inline-flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5" />
-                              <span>Internal IT Note</span>
+                  .map((comment: any) => {
+                    const isReopenLog = comment.content?.includes('TICKET REOPENED');
+                    const isCompleteLog = comment.content?.includes('TICKET MARKED');
+
+                    if (isReopenLog) {
+                      return (
+                        <div
+                          key={comment.id}
+                          className="p-4 rounded-xl border-2 border-amber-300 bg-amber-50/90 text-amber-950 shadow-xs space-y-2 text-xs"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+                                <RotateCcw className="w-3 h-3 text-amber-800" />
+                                <span>Audit Log · Ticket Reopened</span>
+                              </span>
+                              <span className="font-extrabold text-amber-950">{comment.author?.name || 'Staff'}</span>
+                              <span className="text-[10px] text-amber-800/80 font-bold">({comment.author?.role?.replace('_', ' ') || 'User'})</span>
+                            </div>
+                            <span className="text-[10px] text-amber-700 font-bold">
+                              {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
-                          )}
+                          </div>
+                          <p className="text-xs leading-relaxed whitespace-pre-line font-medium text-amber-950">{comment.content?.replace(/^🔁\s*/, '')}</p>
                         </div>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                        </span>
+                      );
+                    }
+
+                    if (isCompleteLog) {
+                      return (
+                        <div
+                          key={comment.id}
+                          className="p-4 rounded-xl border-2 border-emerald-300 bg-emerald-50/90 text-emerald-950 shadow-xs space-y-2 text-xs"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-900 border border-emerald-300 inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-800" />
+                                <span>Audit Log · Ticket Completed</span>
+                              </span>
+                              <span className="font-extrabold text-emerald-950">{comment.author?.name || 'Manager'}</span>
+                              <span className="text-[10px] text-emerald-800/80 font-bold">({comment.author?.role?.replace('_', ' ') || 'User'})</span>
+                            </div>
+                            <span className="text-[10px] text-emerald-700 font-bold">
+                              {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <p className="text-xs leading-relaxed whitespace-pre-line font-medium text-emerald-950">{comment.content}</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={comment.id}
+                        className={`p-4 rounded-xl border space-y-1.5 text-xs transition-all ${comment.isInternal
+                          ? 'border-purple-200 bg-purple-50/60 text-purple-950 shadow-xs'
+                          : 'border-slate-200 bg-slate-50/70 text-slate-800'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900">{comment.author?.name || 'User'}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-200 text-slate-700">
+                              {comment.author?.role?.replace('_', ' ') || 'User'}
+                            </span>
+                            {comment.isInternal && (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-200 text-purple-900 inline-flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5" />
+                                <span>Internal IT Note</span>
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        </div>
+                        <p className="text-xs leading-relaxed whitespace-pre-line">{comment.content}</p>
                       </div>
-                      <p className="text-xs leading-relaxed whitespace-pre-line">{comment.content}</p>
-                    </div>
-                  ))
+                    );
+                  })
               )}
             </div>
           </div>
@@ -934,13 +1075,12 @@ export default function TicketDetailPage() {
                     <option value="URGENT">Urgent Priority</option>
                   </select>
                 ) : (
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider inline-block ${
-                    ticket.priority === 'URGENT'
-                      ? 'bg-red-100 text-red-700 border border-red-200'
-                      : ticket.priority === 'HIGH'
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider inline-block ${ticket.priority === 'URGENT'
+                    ? 'bg-red-100 text-red-700 border border-red-200'
+                    : ticket.priority === 'HIGH'
                       ? 'bg-amber-100 text-amber-900 border border-amber-200'
                       : 'bg-slate-100 text-slate-700 border border-slate-200'
-                  }`}>
+                    }`}>
                     {ticket.priority || 'MEDIUM'}
                   </span>
                 )}
@@ -988,7 +1128,7 @@ export default function TicketDetailPage() {
                       })}
                     </select>
                   </div>
-                  <div>
+                  {/* <div>
                     <p className="text-slate-400 font-bold uppercase text-[10px] mb-1 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-amber-600" />
                       <span>Target Closure / Due Date</span>
@@ -999,7 +1139,7 @@ export default function TicketDetailPage() {
                       onChange={(e) => handleClosureDateChange(e.target.value)}
                       className="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/40"
                     />
-                  </div>
+                  </div> */}
                 </div>
               ) : (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
@@ -1038,6 +1178,18 @@ export default function TicketDetailPage() {
                     </p>
                   </div>
                 )}
+
+                {hasReopenHistory && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                    <p className="text-amber-800 font-bold uppercase text-[10px] flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3 text-amber-600" />
+                      <span>Reopened Ticket</span>
+                    </p>
+                    <p className="text-[11px] text-amber-900 font-semibold mt-0.5">
+                      Previously marked Completed / Closed
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1065,6 +1217,20 @@ export default function TicketDetailPage() {
                     </>
                   )}
                 </select>
+
+                {isClosedStatus && canReopenTicket && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReopenReason('');
+                      setShowReopenModal(true);
+                    }}
+                    className="w-full mt-2 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reopen This Ticket</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1076,7 +1242,7 @@ export default function TicketDetailPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <form onSubmit={handleLogWork} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="font-bold text-base text-slate-900">Log IT Technical Work Hours</h3>
-            
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Target Environment *</label>
@@ -1267,9 +1433,8 @@ export default function TicketDetailPage() {
               <button
                 type="button"
                 onClick={() => handleSubmitTestingResult(testPassedChoice)}
-                className={`px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md ${
-                  testPassedChoice ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
-                }`}
+                className={`px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md ${testPassedChoice ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
               >
                 {testPassedChoice ? 'Confirm Test PASSED' : 'Confirm Test FAILED'}
               </button>
@@ -1424,6 +1589,64 @@ export default function TicketDetailPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Reopen Ticket Modal */}
+      {showReopenModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">Reopen Ticket</h3>
+                <p className="text-[11px] text-slate-500 font-semibold">{ticket.ticketNumber} · Currently {ticket.status}</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+              <p className="font-bold">Stakeholder Audit Notice</p>
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                Reopening this ticket will notify the assigned IT team, tester, and managers.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">
+                Reason for Reopening <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Describe why this ticket needs to be reopened (e.g. issue still persists in production, regressions detected, incomplete fix)..."
+                className="w-full p-3 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-slate-900 font-medium"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowReopenModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                disabled={reopenLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReopenTicket}
+                disabled={reopenLoading || !reopenReason.trim()}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{reopenLoading ? 'Reopening...' : 'Confirm Reopen'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

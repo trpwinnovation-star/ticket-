@@ -248,8 +248,19 @@ export class TicketStore {
     const updater = users.find((u) => u.id === userId) || users[1];
 
     const oldStatus = ticket.status;
+    const isPreviousClosed = ['RESOLVED', 'COMPLETED', 'CLOSED'].includes(oldStatus);
+    const isNewClosed = ['RESOLVED', 'COMPLETED', 'CLOSED'].includes(status);
     ticket.status = status;
     ticket.updatedAt = new Date().toISOString();
+    if (isNewClosed) ticket.closedAt = new Date().toISOString();
+    if (isPreviousClosed && !isNewClosed) ticket.closedAt = undefined;
+
+    let content = `Status updated from ${oldStatus.replace(/_/g, ' ')} to ${status.replace(/_/g, ' ')}.`;
+    if (isPreviousClosed && !isNewClosed) {
+      content = `TICKET REOPENED: This ticket was previously marked as ${oldStatus} and has now been REOPENED by ${updater.name} (${updater.role.replace(/_/g, ' ')}) to status "${status.replace(/_/g, ' ')}".`;
+    } else if (isNewClosed && !isPreviousClosed) {
+      content = `✅ TICKET MARKED ${status}: Marked as ${status} by ${updater.name} (${updater.role.replace(/_/g, ' ')}).`;
+    }
 
     ticket.comments.push({
       id: `cmt-${Date.now()}`,
@@ -258,7 +269,42 @@ export class TicketStore {
       authorName: updater.name,
       authorRole: updater.role,
       authorAvatar: updater.avatar,
-      content: `Status updated from ${oldStatus.replace(/_/g, ' ')} to ${status.replace(/_/g, ' ')}.`,
+      content,
+      isInternal: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    tickets[tIdx] = ticket;
+    setStorage(TICKETS_KEY, tickets);
+    return ticket;
+  }
+
+  static reopenTicket(ticketId: string, reason: string | undefined, userId: string): Ticket | undefined {
+    const tickets = this.getTickets();
+    const users = this.getUsers();
+    const tIdx = tickets.findIndex((t) => t.id === ticketId);
+    if (tIdx === -1) return undefined;
+
+    const ticket = tickets[tIdx];
+    const updater = users.find((u) => u.id === userId) || users[1];
+    const prevStatus = ticket.status;
+
+    ticket.status = ticket.assignedToId ? 'IN_PROGRESS' : 'ASSIGNED';
+    ticket.closedAt = undefined;
+    ticket.updatedAt = new Date().toISOString();
+
+    const reopenMsg = reason?.trim()
+      ? `TICKET REOPENED: This ticket was previously marked as ${prevStatus} and has now been REOPENED by ${updater.name} (${updater.role.replace(/_/g, ' ')}).\nReason: "${reason.trim()}"`
+      : `TICKET REOPENED: This ticket was previously marked as ${prevStatus} and has now been REOPENED by ${updater.name} (${updater.role.replace(/_/g, ' ')}).`;
+
+    ticket.comments.push({
+      id: `cmt-${Date.now()}`,
+      ticketId: ticket.id,
+      authorId: updater.id,
+      authorName: updater.name,
+      authorRole: updater.role,
+      authorAvatar: updater.avatar,
+      content: reopenMsg,
       isInternal: false,
       createdAt: new Date().toISOString(),
     });
@@ -458,6 +504,9 @@ export class TicketStore {
       inProgressTickets: tickets.filter((t) => t.status === 'IN_PROGRESS' || t.status === 'ASSIGNED').length,
       completedTickets: completedCount,
       approvedCount,
+      approvedTickets: approvedCount,
+      acceptedTickets: approvedCount,
+      rejectedTickets: tickets.filter((t) => t.status === 'REJECTED').length,
       approvalRate,
       resolutionRate,
       totalHoursLogged: Math.round(totalHoursLogged * 10) / 10,

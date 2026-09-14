@@ -6,7 +6,7 @@ export class AdminService {
    * Calculate global Super Admin metrics, approval SLAs, logged hours, and audit logs
    */
   static async getPlatformMetrics() {
-    const [totalTickets, pendingApproval, approvedCount, completedCount, workLogs, teamsCount, usersCount] = await Promise.all([
+    const [totalTickets, pendingApproval, approvedCount, rejectedCount, completedCount, workLogs, teamsCount, usersCount] = await Promise.all([
       prisma.ticket.count(),
       prisma.ticket.count({ where: { status: TicketStatus.PENDING_APPROVAL } }),
       prisma.ticket.count({
@@ -24,6 +24,7 @@ export class AdminService {
           },
         },
       }),
+      prisma.ticket.count({ where: { status: TicketStatus.REJECTED } }),
       prisma.ticket.count({
         where: { status: { in: [TicketStatus.RESOLVED, TicketStatus.COMPLETED, TicketStatus.CLOSED] } },
       }),
@@ -42,6 +43,8 @@ export class AdminService {
         totalTickets,
         pendingApprovalTickets: pendingApproval,
         approvedTickets: approvedCount,
+        acceptedTickets: approvedCount,
+        rejectedTickets: rejectedCount,
         completedTickets: completedCount,
         approvalRate,
         resolutionRate,

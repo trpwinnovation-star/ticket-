@@ -68,6 +68,9 @@ export const ticketApi = {
   completeTicket: (id: string) =>
     apiClient(`/api/v1/tickets/${id}/complete`, { method: 'POST' }),
 
+  reopenTicket: (id: string, reason?: string) =>
+    apiClient(`/api/v1/tickets/${id}/reopen`, { method: 'POST', body: { reason } }),
+
   updateEnvironment: (id: string, payload: { environment?: string | null; branchName?: string | null }) =>
     apiClient(`/api/v1/tickets/${id}/environment`, { method: 'PATCH', body: payload }),
 };

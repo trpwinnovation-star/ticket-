@@ -16,6 +16,7 @@ import {
   PlusCircle,
   Trash2,
 } from 'lucide-react';
+import TATBadge from '@/components/TATBadge';
 
 export default function TeamPage() {
   const { currentUser, isAuthenticated, getAuthHeaders } = useAuth();
@@ -33,14 +34,42 @@ export default function TeamPage() {
   const [seenTicketIds, setSeenTicketIds] = useState<Set<string>>(new Set());
   const [workDeskTab, setWorkDeskTab] = useState<'ACTIVE' | 'PENDING_TESTING'>('ACTIVE');
 
-  useEffect(() => {
+  const syncSeenTickets = () => {
     if (currentUser?.id) {
       try {
         const raw = localStorage.getItem(`seen_tickets_${currentUser.id}`) || '[]';
         const list = JSON.parse(raw);
         setSeenTicketIds(new Set(list));
-      } catch (e) { }
+      } catch (e) {
+        setSeenTicketIds(new Set());
+      }
     }
+  };
+
+  const markAsSeen = (ticketId: string) => {
+    if (currentUser?.id && ticketId) {
+      try {
+        const key = `seen_tickets_${currentUser.id}`;
+        const raw = localStorage.getItem(key) || '[]';
+        const list = JSON.parse(raw);
+        if (!list.includes(ticketId)) {
+          list.push(ticketId);
+          localStorage.setItem(key, JSON.stringify(list));
+        }
+        setSeenTicketIds(new Set(list));
+      } catch (e) {}
+    }
+  };
+
+  useEffect(() => {
+    syncSeenTickets();
+    const handleSync = () => syncSeenTickets();
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, [currentUser]);
 
   const fetchData = async () => {
@@ -177,7 +206,7 @@ export default function TeamPage() {
   const activeAssignedTickets = tickets.filter(
     (t) =>
       (t.assignedToId === currentUser?.id || t.testedById === currentUser?.id || ((currentUser as any)?.teamId && t.teamId === (currentUser as any)?.teamId)) &&
-      ['ASSIGNED', 'IN_PROGRESS', 'NEED_MORE_DETAILS', 'APPROVED', 'SUBMITTED', 'PENDING_APPROVAL'].includes(t.status)
+      (t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS')
   );
 
   const pendingTestingTickets = tickets.filter(
@@ -187,6 +216,23 @@ export default function TeamPage() {
   );
 
   const assignedTickets = workDeskTab === 'ACTIVE' ? activeAssignedTickets : pendingTestingTickets;
+
+  const unreadAssignedTickets = assignedTickets
+    .filter((t) => !seenTicketIds.has(t.id))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const viewedAssignedTickets = assignedTickets
+    .filter((t) => {
+      if (!seenTicketIds.has(t.id)) return false;
+      if (workDeskTab === 'ACTIVE') {
+        return t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS';
+      }
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const activeUnreadCount = activeAssignedTickets.filter((t) => !seenTicketIds.has(t.id)).length;
+  const testingUnreadCount = pendingTestingTickets.filter((t) => !seenTicketIds.has(t.id)).length;
 
   return (
     <div className="space-y-8">
@@ -238,21 +284,31 @@ export default function TeamPage() {
                 <div className="flex items-center bg-slate-200/70 p-1 rounded-xl border border-slate-300/60 w-full sm:w-auto">
                   <button
                     onClick={() => setWorkDeskTab('ACTIVE')}
-                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${workDeskTab === 'ACTIVE'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-700 hover:text-slate-900'
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${workDeskTab === 'ACTIVE'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900'
                       }`}
                   >
-                    Active Work ({activeAssignedTickets.length})
+                    <span>Active Work ({activeAssignedTickets.length})</span>
+                    {activeUnreadCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                        {activeUnreadCount} new
+                      </span>
+                    )}
                   </button>
                   <button
                     onClick={() => setWorkDeskTab('PENDING_TESTING')}
-                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${workDeskTab === 'PENDING_TESTING'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-700 hover:text-slate-900'
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${workDeskTab === 'PENDING_TESTING'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900'
                       }`}
                   >
-                    In Testing ({pendingTestingTickets.length})
+                    <span>In Testing ({pendingTestingTickets.length})</span>
+                    {testingUnreadCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                        {testingUnreadCount} new
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -277,64 +333,137 @@ export default function TeamPage() {
                     </p>
                   </div>
                 ) : (
-                  assignedTickets.map((t) => {
-                    const isSeen = seenTicketIds.has(t.id);
-                    return (
-                      <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
-                            {!isSeen ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse">
-                                NEW UNREAD
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
-                                VIEWED
-                              </span>
-                            )}
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
-                              {t.status.replace('_', ' ')}
+                  <div className="divide-y divide-slate-100">
+                    {/* Unread Tickets - Always on Top */}
+                    {unreadAssignedTickets.length > 0 && (
+                      <div>
+                        <div className="px-5 py-2.5 bg-emerald-50/70 border-b border-emerald-200/80 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
                             </span>
-                            {t.environment && (
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
-                                t.environment === 'PROD'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : t.environment === 'UAT'
-                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}>
-                                Env: {t.environment}
-                              </span>
-                            )}
-                            {t.testingStatus && (
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
-                                t.testingStatus === 'PASSED'
-                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                  : t.testingStatus === 'FAILED'
-                                  ? 'bg-red-100 text-red-900 border-red-300'
-                                  : 'bg-amber-100 text-amber-900 border-amber-300'
-                              }`}>
-                                Test: {t.testingStatus}
-                              </span>
-                            )}
+                            <span className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                              Pending Unread Tickets ({unreadAssignedTickets.length})
+                            </span>
                           </div>
-                          <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
-                          <p className="text-xs text-slate-500">{t.websiteName} • {t.module} {t.branchName ? `• Branch: ${t.branchName}` : ''}</p>
+                          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                            Unread
+                          </span>
                         </div>
+                        <div className="divide-y divide-emerald-100/60 bg-emerald-50/15">
+                          {unreadAssignedTickets.map((t) => (
+                            <div key={t.id} className="p-5 hover:bg-emerald-50/40 transition-colors flex items-center justify-between gap-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                                    NEW UNREAD
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                                    {t.status.replace('_', ' ')}
+                                  </span>
+                                  {t.environment && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${t.environment === 'PROD'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : t.environment === 'UAT'
+                                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                                      }`}>
+                                      Env: {t.environment}
+                                    </span>
+                                  )}
+                                  {t.testingStatus && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${t.testingStatus === 'PASSED'
+                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                        : t.testingStatus === 'FAILED'
+                                          ? 'bg-red-100 text-red-900 border-red-300'
+                                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                                      }`}>
+                                      Test: {t.testingStatus}
+                                    </span>
+                                  )}
+                                  <TATBadge ticket={t} size="xs" />
+                                </div>
+                                <h3 className="font-bold text-sm text-slate-900">{t.title}</h3>
+                                <p className="text-xs text-slate-500">{t.websiteName} • {t.module} {t.branchName ? `• Branch: ${t.branchName}` : ''}</p>
+                              </div>
 
-                        <Link
-                          href={`/tickets/${t.id}`}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${!isSeen
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                          {!isSeen ? 'Open New Ticket' : 'Open & Log Work'}
-                        </Link>
+                              <Link
+                                href={`/tickets/${t.id}`}
+                                onClick={() => markAsSeen(t.id)}
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
+                              >
+                                Open Ticket
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    );
-                  })
+                    )}
+
+                    {/* Viewed Tickets - Always Below Unread Tickets */}
+                    {viewedAssignedTickets.length > 0 && (
+                      <div>
+                          <div className="px-5 py-2.5 bg-slate-100/80 border-t border-b border-slate-200 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Open & In-Progress Tickets ({viewedAssignedTickets.length})
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              Viewed • Open or In-Progress
+                            </span>
+                          </div>
+                        <div className="divide-y divide-slate-100 bg-white">
+                          {viewedAssignedTickets.map((t) => (
+                            <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs font-bold text-[#c16d18]">{t.ticketNumber}</span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
+                                    VIEWED
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                                    {t.status.replace('_', ' ')}
+                                  </span>
+                                  {t.environment && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${t.environment === 'PROD'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : t.environment === 'UAT'
+                                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                                      }`}>
+                                      Env: {t.environment}
+                                    </span>
+                                  )}
+                                  {t.testingStatus && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${t.testingStatus === 'PASSED'
+                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                        : t.testingStatus === 'FAILED'
+                                          ? 'bg-red-100 text-red-900 border-red-300'
+                                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                                      }`}>
+                                      Test: {t.testingStatus}
+                                    </span>
+                                  )}
+                                  <TATBadge ticket={t} size="xs" />
+                                </div>
+                                <h3 className="font-bold text-sm text-slate-700">{t.title}</h3>
+                                <p className="text-xs text-slate-500">{t.websiteName} • {t.module} {t.branchName ? `• Branch: ${t.branchName}` : ''}</p>
+                              </div>
+
+                              <Link
+                                href={`/tickets/${t.id}`}
+                                onClick={() => markAsSeen(t.id)}
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                              >
+                                Open & Log Work
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

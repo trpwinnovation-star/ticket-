@@ -72,6 +72,7 @@ export class TicketController {
         teamId,
         priority,
         targetClosureDate,
+        actor: (req as any).user,
       });
       res.json({ success: true, ...result });
     } catch (err) {
@@ -124,7 +125,7 @@ export class TicketController {
     try {
       const ticketId = String(req.params.id);
       const { assignedToId, teamId, targetClosureDate, priority } = req.body;
-      const result = await TicketService.assignTicket(ticketId, assignedToId, teamId, targetClosureDate, priority);
+      const result = await TicketService.assignTicket(ticketId, assignedToId, teamId, targetClosureDate, priority, (req as any).user);
       res.json({ success: true, ...result });
     } catch (err) {
       next(err);
@@ -226,6 +227,21 @@ export class TicketController {
       const ticketId = String(req.params.id);
       if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
       const result = await TicketService.completeTicket(ticketId, req.user);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/tickets/:id/reopen
+   */
+  static async reopen(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const ticketId = String(req.params.id);
+      const { reason } = req.body;
+      if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+      const result = await TicketService.reopenTicket(ticketId, reason, req.user);
       res.json({ success: true, ...result });
     } catch (err) {
       next(err);

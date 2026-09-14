@@ -21,6 +21,7 @@ import {
   Trash2,
   Lightbulb,
   UserCheck,
+  Scale,
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
@@ -296,6 +297,18 @@ export default function SuperAdminDashboard() {
     );
   });
 
+  const acceptedCount =
+    metrics.acceptedTickets !== undefined
+      ? metrics.acceptedTickets
+      : tickets.filter((t) =>
+          ['APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'PENDING_TESTING', 'RESOLVED', 'COMPLETED', 'CLOSED'].includes(t.status)
+        ).length;
+
+  const rejectedCount =
+    metrics.rejectedTickets !== undefined
+      ? metrics.rejectedTickets
+      : tickets.filter((t) => t.status === 'REJECTED').length;
+
   return (
     <div className="space-y-8">
       {/* Top Banner */}
@@ -356,11 +369,17 @@ export default function SuperAdminDashboard() {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Teams</span>
-            <Building className="w-5 h-5 text-amber-600" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Accepted / Rejected</span>
+            <Scale className="w-5 h-5 text-indigo-600" />
           </div>
-          <p className="text-3xl font-black text-slate-900">{metrics.totalTeams || teams.length}</p>
-          <p className="text-[11px] text-slate-400 font-medium">Subcontractor units</p>
+          <p className="text-3xl font-black text-slate-900">
+            <span className="text-emerald-600">{acceptedCount}</span>
+            <span className="text-slate-400 mx-1">/</span>
+            <span className="text-rose-600">{rejectedCount}</span>
+          </p>
+          <p className="text-[11px] text-slate-400 font-medium">
+            <span className="text-emerald-600 font-semibold">{acceptedCount} accepted</span> · <span className="text-rose-600 font-semibold">{rejectedCount} rejected</span>
+          </p>
         </div>
       </div>
 
