@@ -32,6 +32,7 @@ import {
   CheckCheck,
   RotateCcw,
 } from 'lucide-react';
+import TATBadge from '@/components/TATBadge';
 
 export default function TicketDetailPage() {
   const params = useParams();
@@ -530,7 +531,7 @@ export default function TicketDetailPage() {
               <option value="HIGH">High Priority</option>
               <option value="URGENT">Urgent Priority</option>
             </select>
-            {/* <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
               <span className="text-[11px] font-bold text-amber-900 shrink-0">Target Closure:</span>
               <input
                 type="date"
@@ -538,7 +539,7 @@ export default function TicketDetailPage() {
                 onChange={(e) => setTargetClosureDate(e.target.value)}
                 className="w-full sm:w-auto px-2 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
               />
-            </div> */}
+            </div>
             <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
               <button
                 onClick={handleApprove}
@@ -566,6 +567,7 @@ export default function TicketDetailPage() {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-sm font-black text-[#c16d18]">{ticket.ticketNumber}</span>
+                <TATBadge ticket={ticket} showDetails={true} />
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
                   {ticket.category}
                 </span>
@@ -1128,7 +1130,7 @@ export default function TicketDetailPage() {
                       })}
                     </select>
                   </div>
-                  {/* <div>
+                  <div>
                     <p className="text-slate-400 font-bold uppercase text-[10px] mb-1 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-amber-600" />
                       <span>Target Closure / Due Date</span>
@@ -1139,7 +1141,7 @@ export default function TicketDetailPage() {
                       onChange={(e) => handleClosureDateChange(e.target.value)}
                       className="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/40"
                     />
-                  </div> */}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2 pt-2 border-t border-slate-100">

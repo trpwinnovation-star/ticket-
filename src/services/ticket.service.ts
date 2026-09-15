@@ -424,10 +424,18 @@ export class TicketService {
     const currentTicket = await prisma.ticket.findUnique({ where: { id: ticketId } });
 
     const dataObj: any = {
-      assignedToId: finalAssigneeId,
-      teamId: finalTeamId,
       status: (finalAssigneeId || finalTeamId) ? TicketStatus.ASSIGNED : TicketStatus.APPROVED,
     };
+    if (finalAssigneeId) {
+      dataObj.assignedTo = { connect: { id: finalAssigneeId } };
+    } else {
+      dataObj.assignedTo = { disconnect: true };
+    }
+    if (finalTeamId) {
+      dataObj.team = { connect: { id: finalTeamId } };
+    } else {
+      dataObj.team = { disconnect: true };
+    }
     if (currentTicket && !(currentTicket as any).approvedAt) {
       dataObj.approvedAt = new Date();
       dataObj.approvedByRole = actor?.role || 'MANAGER';
@@ -633,7 +641,6 @@ export class TicketService {
         testingStatus: newTestingStatus,
         testingFeedback: feedback || (passed ? 'Module testing passed.' : 'Module testing failed.'),
         status: updatedStatus,
-        assignedToId,
       },
       include: {
         createdBy: true,
