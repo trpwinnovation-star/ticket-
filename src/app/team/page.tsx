@@ -57,7 +57,7 @@ export default function TeamPage() {
           localStorage.setItem(key, JSON.stringify(list));
         }
         setSeenTicketIds(new Set(list));
-      } catch (e) {}
+      } catch (e) { }
     }
   };
 
@@ -365,20 +365,20 @@ export default function TeamPage() {
                                   </span>
                                   {t.environment && (
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${t.environment === 'PROD'
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : t.environment === 'UAT'
-                                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : t.environment === 'UAT'
+                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                        : 'bg-blue-50 text-blue-700 border-blue-200'
                                       }`}>
                                       Env: {t.environment}
                                     </span>
                                   )}
                                   {t.testingStatus && (
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${t.testingStatus === 'PASSED'
-                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                        : t.testingStatus === 'FAILED'
-                                          ? 'bg-red-100 text-red-900 border-red-300'
-                                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : t.testingStatus === 'FAILED'
+                                        ? 'bg-red-100 text-red-900 border-red-300'
+                                        : 'bg-amber-100 text-amber-900 border-amber-300'
                                       }`}>
                                       Test: {t.testingStatus}
                                     </span>
@@ -405,14 +405,14 @@ export default function TeamPage() {
                     {/* Viewed Tickets - Always Below Unread Tickets */}
                     {viewedAssignedTickets.length > 0 && (
                       <div>
-                          <div className="px-5 py-2.5 bg-slate-100/80 border-t border-b border-slate-200 flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                              Open & In-Progress Tickets ({viewedAssignedTickets.length})
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              Viewed • Open or In-Progress
-                            </span>
-                          </div>
+                        <div className="px-5 py-2.5 bg-slate-100/80 border-t border-b border-slate-200 flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Open & In-Progress Tickets ({viewedAssignedTickets.length})
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Viewed • Open or In-Progress
+                          </span>
+                        </div>
                         <div className="divide-y divide-slate-100 bg-white">
                           {viewedAssignedTickets.map((t) => (
                             <div key={t.id} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
@@ -427,20 +427,20 @@ export default function TeamPage() {
                                   </span>
                                   {t.environment && (
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${t.environment === 'PROD'
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : t.environment === 'UAT'
-                                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : t.environment === 'UAT'
+                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                        : 'bg-blue-50 text-blue-700 border-blue-200'
                                       }`}>
                                       Env: {t.environment}
                                     </span>
                                   )}
                                   {t.testingStatus && (
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${t.testingStatus === 'PASSED'
-                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                        : t.testingStatus === 'FAILED'
-                                          ? 'bg-red-100 text-red-900 border-red-300'
-                                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : t.testingStatus === 'FAILED'
+                                        ? 'bg-red-100 text-red-900 border-red-300'
+                                        : 'bg-amber-100 text-amber-900 border-amber-300'
                                       }`}>
                                       Test: {t.testingStatus}
                                     </span>

@@ -437,11 +437,10 @@ export default function RecommendationsPage() {
                           <button
                             onClick={() => handleUpvote(rec.id)}
                             title={hasUserVoted ? "Click to remove your upvote" : "Click to upvote this suggestion"}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${
-                              hasUserVoted
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${hasUserVoted
                                 ? 'bg-[#c16d18] text-white border border-[#c16d18] shadow-amber-600/30 ring-2 ring-[#c16d18]/20'
                                 : 'border border-amber-300 bg-amber-50 hover:bg-[#c16d18] hover:text-white text-[#c16d18]'
-                            }`}
+                              }`}
                           >
                             <ThumbsUp className={`w-3.5 h-3.5 ${hasUserVoted ? 'fill-white' : ''}`} />
                             <span>{hasUserVoted ? `Upvoted (${rec.upvotes})` : `Upvote (${rec.upvotes})`}</span>

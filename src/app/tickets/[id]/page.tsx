@@ -58,7 +58,6 @@ export default function TicketDetailPage() {
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedPriority, setSelectedPriority] = useState<string>('MEDIUM');
-  const [targetClosureDate, setTargetClosureDate] = useState<string>('');
   const [rejectReason, setRejectReason] = useState<string>('');
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [itUsers, setItUsers] = useState<any[]>([]);
@@ -146,11 +145,6 @@ export default function TicketDetailPage() {
         if (data.ticket.assignedToId) setAssigneeId(data.ticket.assignedToId);
         if (data.ticket.teamId) setSelectedTeamId(data.ticket.teamId);
         if (data.ticket.priority) setSelectedPriority(data.ticket.priority);
-        if (data.ticket.targetClosureDate) {
-          setTargetClosureDate(new Date(data.ticket.targetClosureDate).toISOString().split('T')[0]);
-        } else {
-          setTargetClosureDate('');
-        }
 
         if (data.ticket.testedById) setTestedByIdState(data.ticket.testedById);
         if (data.ticket.environment) {
@@ -325,20 +319,6 @@ export default function TicketDetailPage() {
     }
   };
 
-  const handleClosureDateChange = async (newDate: string) => {
-    setTargetClosureDate(newDate);
-    try {
-      await ticketApi.assign(ticketId, {
-        targetClosureDate: newDate || null,
-        assignedToId: ticket?.assignedToId || undefined,
-        teamId: ticket?.teamId || undefined,
-      });
-      fetchTicket();
-    } catch (e) {
-      console.error('Failed to set target closure date:', e);
-    }
-  };
-
   const handlePriorityChange = async (newPriority: string) => {
     setSelectedPriority(newPriority);
     try {
@@ -355,7 +335,6 @@ export default function TicketDetailPage() {
         assignedToId: assigneeId || undefined,
         teamId: selectedTeamId || undefined,
         priority: selectedPriority || undefined,
-        targetClosureDate: targetClosureDate || undefined,
       });
       fetchTicket();
     } catch (e) {
@@ -531,15 +510,6 @@ export default function TicketDetailPage() {
               <option value="HIGH">High Priority</option>
               <option value="URGENT">Urgent Priority</option>
             </select>
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
-              <span className="text-[11px] font-bold text-amber-900 shrink-0">Target Closure:</span>
-              <input
-                type="date"
-                value={targetClosureDate}
-                onChange={(e) => setTargetClosureDate(e.target.value)}
-                className="w-full sm:w-auto px-2 py-1 text-xs font-bold border border-amber-300 rounded-lg bg-white focus:outline-none"
-              />
-            </div>
             <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
               <button
                 onClick={handleApprove}
@@ -1130,18 +1100,6 @@ export default function TicketDetailPage() {
                       })}
                     </select>
                   </div>
-                  <div>
-                    <p className="text-slate-400 font-bold uppercase text-[10px] mb-1 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Target Closure / Due Date</span>
-                    </p>
-                    <input
-                      type="date"
-                      value={targetClosureDate}
-                      onChange={(e) => handleClosureDateChange(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/40"
-                    />
-                  </div>
                 </div>
               ) : (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
@@ -1152,14 +1110,6 @@ export default function TicketDetailPage() {
                   <div>
                     <p className="text-slate-400 font-bold uppercase text-[10px]">Assigned Specialist</p>
                     <p className="font-bold text-slate-800">{ticket.assignedTo?.name || 'Unassigned'}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-400 font-bold uppercase text-[10px]">Target Closure Date</p>
-                    <p className="font-bold text-slate-800">
-                      {ticket.targetClosureDate
-                        ? new Date(ticket.targetClosureDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                        : 'Not Set'}
-                    </p>
                   </div>
                 </div>
               )}

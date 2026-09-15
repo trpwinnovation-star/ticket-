@@ -205,18 +205,24 @@ export class TicketService {
    * Manager Approve Ticket (Level 3 Manager action)
    */
   static async approveTicket(dto: ApproveTicketDTO) {
+    const dataObj: any = {
+      status: (dto.assignedToId || dto.teamId) ? TicketStatus.ASSIGNED : TicketStatus.APPROVED,
+      priority: dto.priority || undefined,
+      targetClosureDate: dto.targetClosureDate ? new Date(dto.targetClosureDate) : undefined,
+      approvedAt: new Date(),
+      approvedByRole: dto.actor?.role || 'MANAGER',
+      approvedByName: dto.actor?.name || 'Manager',
+    };
+    if (dto.assignedToId) {
+      dataObj.assignedTo = { connect: { id: dto.assignedToId } };
+    }
+    if (dto.teamId) {
+      dataObj.team = { connect: { id: dto.teamId } };
+    }
+
     const updated = await prisma.ticket.update({
       where: { id: dto.ticketId },
-      data: {
-        status: (dto.assignedToId || dto.teamId) ? TicketStatus.ASSIGNED : TicketStatus.APPROVED,
-        priority: dto.priority || undefined,
-        assignedToId: dto.assignedToId || undefined,
-        teamId: dto.teamId || undefined,
-        targetClosureDate: dto.targetClosureDate ? new Date(dto.targetClosureDate) : undefined,
-        approvedAt: new Date(),
-        approvedByRole: dto.actor?.role || 'MANAGER',
-        approvedByName: dto.actor?.name || 'Manager',
-      } as any,
+      data: dataObj,
       include: {
         createdBy: true,
         assignedTo: true,

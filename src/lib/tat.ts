@@ -124,60 +124,15 @@ export function getTicketTAT(ticket: any): TATResult {
   const elapsedMs = Math.max(0, endTimestamp - approvedAt.getTime());
   const formattedElapsed = formatDuration(elapsedMs);
 
-  let isOverdue = false;
-  let overdueMs = 0;
-  let remainingMs = 0;
-  let slaStatus: TATResult['slaStatus'] = 'NO_SLA';
-  let slaLabel = 'No SLA Set';
-
-  if (targetClosureDate) {
-    const targetMs = targetClosureDate.getTime();
-    if (isClosed) {
-      if (endTimestamp <= targetMs) {
-        slaStatus = 'MET';
-        slaLabel = 'Completed within SLA';
-      } else {
-        isOverdue = true;
-        overdueMs = endTimestamp - targetMs;
-        slaStatus = 'MISSED';
-        slaLabel = `SLA Missed by ${formatDuration(overdueMs)}`;
-      }
-    } else {
-      if (now.getTime() > targetMs) {
-        isOverdue = true;
-        overdueMs = now.getTime() - targetMs;
-        slaStatus = 'BREACHED';
-        slaLabel = `SLA Breached (+${formatDuration(overdueMs)})`;
-      } else {
-        remainingMs = targetMs - now.getTime();
-        slaStatus = 'ON_TRACK';
-        slaLabel = `${formatDuration(remainingMs)} remaining`;
-      }
-    }
-  }
-
   let badgeVariant: TATResult['badgeVariant'] = 'blue';
   let badgeText = `TAT: ${formattedElapsed}`;
 
   if (isClosed) {
-    if (isOverdue) {
-      badgeVariant = 'amber';
-      badgeText = `TAT: ${formattedElapsed} (Overdue)`;
-    } else {
-      badgeVariant = 'emerald';
-      badgeText = `Final TAT: ${formattedElapsed}`;
-    }
+    badgeVariant = 'emerald';
+    badgeText = `Final TAT: ${formattedElapsed}`;
   } else {
-    if (isOverdue) {
-      badgeVariant = 'red';
-      badgeText = `TAT: ${formattedElapsed} (Breached)`;
-    } else if (targetClosureDate) {
-      badgeVariant = 'blue';
-      badgeText = `TAT: ${formattedElapsed} (${formatDuration(remainingMs)} left)`;
-    } else {
-      badgeVariant = 'blue';
-      badgeText = `TAT: ${formattedElapsed}`;
-    }
+    badgeVariant = 'blue';
+    badgeText = `TAT: ${formattedElapsed}`;
   }
 
   return {
@@ -190,14 +145,14 @@ export function getTicketTAT(ticket: any): TATResult {
     targetClosureDate,
     elapsedMs,
     formattedElapsed,
-    isOverdue,
-    overdueMs,
-    formattedOverdue: formatDuration(overdueMs),
-    remainingMs,
-    formattedRemaining: formatDuration(remainingMs),
+    isOverdue: false,
+    overdueMs: 0,
+    formattedOverdue: '',
+    remainingMs: 0,
+    formattedRemaining: '',
     badgeText,
     badgeVariant,
-    slaStatus,
-    slaLabel,
+    slaStatus: 'NO_SLA',
+    slaLabel: '',
   };
 }
